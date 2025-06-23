@@ -1,72 +1,130 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Monument NFT App</title>
-  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <meta charset="UTF-8">
+  <title>Monument WebApp</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- TON Connect SDK -->
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+
   <style>
     body {
       margin: 0;
-      font-family: 'Arial', sans-serif;
-      background-color: #fdf6ec;
+      padding: 0;
+      background-color: #0e0e0e;
+      font-family: 'Segoe UI', sans-serif;
+      color: #ddd;
       overflow: hidden;
     }
-    .background {
-      position: fixed;
-      width: 100vw;
-      height: 100vh;
-      z-index: -1;
-      background: url('images/pepe-corner.png') bottom left no-repeat,
-                  url('images/nft-gift-corner.png') top right no-repeat;
-      background-size: 25%, 25%;
+
+    .corner-img {
+      position: absolute;
+      width: 120px;
+      opacity: 0.9;
+      animation: fadeIn 2s ease-in forwards;
     }
-    .container {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      padding: 2rem;
+
+    .corner-left {
+      bottom: 0;
+      left: 0;
+      animation-delay: 0.2s;
     }
-    .title {
-      font-size: 2rem;
-      color: #333;
-      margin-bottom: 1rem;
-      animation: fadeIn 1.2s ease-in-out;
+
+    .corner-right {
+      top: 0;
+      right: 0;
+      animation-delay: 0.4s;
     }
-    #ton-connect-button {
-      width: fit-content;
-      padding: 0.8rem 1.2rem;
-      background-color: #ffdc5c;
-      color: #111;
-      font-weight: bold;
-      border-radius: 8px;
+
+    #connect-wallet-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background-color: #1f1f1f;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid #444;
       cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      transition: transform 0.2s ease;
-      animation: fadeIn 2s ease-in-out;
+      font-size: 15px;
+      animation: fadeInUp 1.2s ease-in-out forwards;
     }
-    #ton-connect-button:hover {
-      transform: scale(1.05);
+
+    #main {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      max-width: 340px;
+      animation: fadeInUp 1.5s ease-in-out forwards;
     }
+
+    .title {
+      font-size: 26px;
+      font-weight: bold;
+      color: #f0f0f0;
+      margin-bottom: 20px;
+    }
+
+    .frame {
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(#1c1c1c, #0e0e0e);
+      border: 2px solid #333;
+      border-radius: 18px;
+      margin: 0 auto 20px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .desc {
+      color: #aaa;
+      font-size: 14px;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -40%);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+      }
+    }
+
     @keyframes fadeIn {
-      0% {opacity: 0; transform: translateY(-10px);}
-      100% {opacity: 1; transform: translateY(0);}
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
 <body>
-  <div class="background"></div>
-  <div class="container">
-    <div class="title">Welcome to Monument App</div>
-    <div id="ton-connect-button"></div>
+
+  <!-- Угловые картинки -->
+  <img src="images/pepe-corner.png" class="corner-img corner-left" alt="Pepe NFT">
+  <img src="images/nft-gift-corner.png" class="corner-img corner-right" alt="Gift NFT">
+
+  <!-- Кнопка подключения -->
+  <button id="connect-wallet-btn">🔗 Подключить кошелёк</button>
+
+  <!-- Основной блок -->
+  <div id="main">
+    <div class="title">Создай свой памятник</div>
+    <div class="frame">🎁</div>
+    <div class="desc">NFT-подарки, мемориалы и Telegram — в одном месте.</div>
   </div>
 
-  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+  <!-- Подключение TON Connect -->
   <script>
     const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-      manifestUrl: 'https://YOUR_DOMAIN/tonconnect-manifest.json',
-      buttonRootId: 'ton-connect-button'
+      manifestUrl: 'https://yourdomain.com/tonconnect-manifest.json',
+      buttonRootId: 'connect-wallet-btn'
     });
   </script>
+
 </body>
 </html>
