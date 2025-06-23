@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Monument Web App</title>
+  <title>Monument Wallet App</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     body {
@@ -12,9 +12,15 @@
       background-color: #0e0e0e;
       color: #ddd;
       overflow: hidden;
+      animation: fadeInBody 1.2s ease;
     }
 
-    #auth-btn {
+    @keyframes fadeInBody {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    #connect-wallet-btn {
       position: absolute;
       top: 20px;
       left: 20px;
@@ -25,33 +31,14 @@
       border-radius: 10px;
       cursor: pointer;
       font-size: 15px;
-      transition: background-color 0.3s ease;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+      opacity: 0;
+      animation: fadeInUp 1s ease 0.5s forwards;
     }
 
-    #auth-btn:hover {
+    #connect-wallet-btn:hover {
       background-color: #2b2b2b;
-    }
-
-    #profile {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid #444;
-      padding: 12px 16px;
-      border-radius: 12px;
-      color: white;
-      backdrop-filter: blur(4px);
-    }
-
-    #profile img {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      border: 1px solid #999;
+      transform: scale(1.05);
     }
 
     #main {
@@ -61,6 +48,8 @@
       transform: translate(-50%, -50%);
       text-align: center;
       padding: 20px;
+      opacity: 0;
+      animation: fadeInUp 1s ease 1s forwards;
     }
 
     .monument-title {
@@ -87,26 +76,67 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      animation: fadeInScale 1s ease 1.3s forwards;
+      opacity: 0;
     }
 
     .placeholder-gift {
       font-size: 60px;
     }
+
+    #wallet-address {
+      margin-top: 12px;
+      font-size: 14px;
+      color: #6fcf97;
+    }
+
+    /* Анимации */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* Фоны NFT */
+    .nft-pepe {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      width: 90px;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+
+    .nft-cookie {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 80px;
+      opacity: 0.12;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Кнопка авторизации -->
-  <button id="auth-btn" onclick="authorize()">Авторизоваться через Telegram</button>
-
-  <!-- Профиль (покажется после авторизации) -->
-  <div id="profile" style="display: none;">
-    <img id="avatar" src="" alt="avatar" />
-    <div>
-      <div id="username" style="font-weight: bold;"></div>
-      <div id="userid" style="font-size: 13px; color: #888;"></div>
-    </div>
-  </div>
+  <!-- Кнопка подключения кошелька -->
+  <button id="connect-wallet-btn" onclick="connectWallet()">Подключить Telegram Кошелёк</button>
 
   <!-- Основной контент -->
   <div id="main">
@@ -115,27 +145,20 @@
       <div class="placeholder-gift">🎁</div>
     </div>
     <div class="monument-desc">NFT-подарки, мемориалы, и стиль Telegram в одном месте.</div>
+    <div id="wallet-address"></div>
   </div>
 
-  <!-- Скрипт авторизации -->
+  <!-- NFT-фоновые изображения -->
+  <img class="nft-pepe" src="https://telegram.org/img/tgme/pepe_present.webp" alt="pepe nft" />
+  <img class="nft-cookie" src="https://telegram.org/img/tgme/cookie_present.webp" alt="cookie nft" />
+
+  <!-- Скрипт подключения кошелька -->
   <script>
-    function authorize() {
-      const tg = window.Telegram.WebApp;
-
-      const user = tg.initDataUnsafe.user;
-
-      if (!user) {
-        alert("Открой через Telegram-бота!");
-        return;
-      }
-
-      document.getElementById("auth-btn").style.display = "none";
-      document.getElementById("profile").style.display = "flex";
-
-      document.getElementById("username").innerText = `${user.first_name} ${user.last_name || ""}`;
-      document.getElementById("userid").innerText = `@${user.username || "нет username"}`;
-      document.getElementById("avatar").src = "https://api.dicebear.com/7.x/thumbs/svg?seed=" + (user.username || user.id);
+    function connectWallet() {
+      const walletUrl = "https://wallet.tg/connect";
+      window.open(walletUrl, "_blank");
     }
   </script>
+
 </body>
 </html>
