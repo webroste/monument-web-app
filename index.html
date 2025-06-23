@@ -59,3 +59,22 @@
   <div id="username"></div>
   <div id="userid"></div>
 </div>
+<script>
+  function authorize() {
+    const tg = window.Telegram.WebApp;
+
+    const user = tg.initDataUnsafe.user;
+
+    if (!user) {
+      alert("Пожалуйста, открой приложение через Telegram-бота.");
+      return;
+    }
+
+    document.getElementById("auth-btn").style.display = "none";
+    document.getElementById("profile").style.display = "block";
+
+    document.getElementById("username").innerText = `${user.first_name} ${user.last_name || ""}`;
+    document.getElementById("userid").innerText = `@${user.username || "Нет username"}`;
+    document.getElementById("avatar").src = "https://api.dicebear.com/7.x/thumbs/svg?seed=" + (user.username || user.id);
+  }
+</script>
