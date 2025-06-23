@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Monument WebApp</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+</head>
+<body>
+  <img src="images/pepe-corner.png" class="corner-img corner-left" alt="Pepe">
+  <img src="images/nft-gift-corner.png" class="corner-img corner-right" alt="Gift">
+
+  <div class="container">
+    <div class="title">Создай свой памятник</div>
+    <button id="connect-wallet-btn">🔗 Подключить кошелёк</button>
+
+    <div class="carousel">
+      <div class="monument-card">🕊 Мемориал Пепе</div>
+      <div class="monument-card">🎁 NFT Подарок</div>
+      <div class="monument-card">🔥 Crypto Герой</div>
+    </div>
+
+    <a href="create.html"><button class="create-btn">Создать памятник</button></a>
+  </div>
+
+  <script>
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: 'https://yourdomain.com/tonconnect-manifest.json',
+      buttonRootId: 'connect-wallet-btn'
+    });
+  </script>
+</body>
+</html>
