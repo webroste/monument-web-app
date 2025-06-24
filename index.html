@@ -1,0 +1,32 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monument WebApp</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <div class="loader" id="loader">Загрузка...</div>
+    <div class="app hidden" id="app">
+        <header>
+            <h1>🪦 NFT Monument Generator</h1>
+            <button id="connectWalletBtn">Connect Wallet</button>
+        </header>
+        <main>
+            <div class="carousel-container">
+                <button id="prevSample">◀</button>
+                <div id="monumentSample" class="sample">Sample 1</div>
+                <button id="nextSample">▶</button>
+            </div>
+            <button id="generateBtn">🎲 Сгенерировать памятник</button>
+            <button id="editBtn">Редактировать</button>
+        </main>
+        <footer>
+            <a href="privacy.html">Privacy Policy</a>
+        </footer>
+    </div>
+    <script src="scripts/app.js"></script>
+</body>
+</html>

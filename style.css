@@ -1,0 +1,42 @@
+
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    background: #0f0f1a;
+    color: white;
+}
+.loader {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    background: #000;
+}
+.hidden { display: none; }
+header, footer {
+    padding: 1em;
+    text-align: center;
+}
+button {
+    background: linear-gradient(135deg, #5c4ee5, #7b6df9);
+    border: none;
+    border-radius: 8px;
+    padding: 0.8em 1.2em;
+    color: white;
+    font-size: 1em;
+    box-shadow: 0 0 15px rgba(124, 99, 255, 0.5);
+    margin: 10px;
+}
+.carousel-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 20px;
+}
+.sample {
+    margin: 0 10px;
+    font-size: 1.2em;
+}
