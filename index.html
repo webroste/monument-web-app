@@ -1,0 +1,42 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFT Monuments</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="header">
+    <h1>NFT Monuments</h1>
+    <button id="connectWallet">Connect Wallet</button>
+  </div>
+
+  <div class="main-content">
+    <h2>Create Your Monument</h2>
+    <label>Select a style:
+      <select id="styleSelector">
+        <option>Classic</option>
+        <option>Futuristic</option>
+        <option>Minimal</option>
+      </select>
+    </label>
+    <div class="editor">
+      <div id="monumentCanvas">[ Canvas Placeholder ]</div>
+      <div class="decorations">
+        <p>Drag Decorations</p>
+        <div class="emoji">🌹 🎁 🕊️ 🧸</div>
+      </div>
+    </div>
+    <input type="text" placeholder="Enter price in TON" id="priceInput">
+    <button id="publish">Publish</button>
+  </div>
+
+  <footer>
+    <a href="privacy/privacy.html">Privacy Policy</a>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
