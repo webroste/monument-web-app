@@ -1,0 +1,27 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Create Your Monument</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <h1>Create Your NFT Monument</h1>
+  <form id="monument-form">
+    <input type="text" id="title" placeholder="Name your monument" required><br>
+    <label>Select Template:</label><br>
+    <div class="template-select">
+      <img src="images/templates/template1.png" class="template" data-template="1">
+      <img src="images/templates/template2.png" class="template" data-template="2">
+      <img src="images/templates/template3.png" class="template" data-template="3">
+    </div>
+    <label>Decorate with Emojis:</label><br>
+    <div id="emoji-palette">🌸 🕊️ 💀 🧸 💎 ❤️ ✨</div>
+    <div id="monument-canvas" class="canvas-area"></div><br>
+    <input type="number" id="price" placeholder="Price in TON"><br>
+    <button type="submit">Create</button>
+  </form>
+  <script src="js/dragdrop.js"></script>
+</body>
+</html>

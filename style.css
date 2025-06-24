@@ -1,0 +1,35 @@
+
+body {
+  font-family: sans-serif;
+  background-color: #f1f1f1;
+  padding: 20px;
+}
+.template-select img {
+  width: 100px;
+  margin: 5px;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+.template-select img:hover {
+  border: 2px solid #555;
+}
+#emoji-palette {
+  margin: 10px 0;
+}
+.draggable {
+  margin: 5px;
+  font-size: 24px;
+  cursor: grab;
+}
+.canvas-area {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  background-color: #fff;
+  border: 2px dashed #ccc;
+  background-size: cover;
+  margin-bottom: 10px;
+}
+.emoji-drop {
+  font-size: 24px;
+}
