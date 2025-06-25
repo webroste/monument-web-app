@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Далее</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      font-family: Arial, sans-serif;
+      color: white;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+
+    .bg-effects {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .bg-effects svg {
+      position: absolute;
+      width: 200%;
+      height: 200%;
+      opacity: 0.08;
+    }
+
+    .container {
+      z-index: 2;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: bold;
+      color: #00f0ff;
+      margin-bottom: 20px;
+    }
+
+    .content {
+      font-size: 22px;
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-effects">
+    <svg>
+      <ellipse cx="60%" cy="30%" rx="300" ry="500" stroke="#00f0ff" stroke-width="2" fill="none" />
+      <path d="M -200,700 Q 600,100 1400,800" stroke="#00f0ff" stroke-width="2" fill="none"/>
+      <circle cx="10%" cy="90%" r="200" stroke="#00f0ff" stroke-width="1.5" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="container">
+    <div class="logo">🪦 NFT Monuments</div>
+    <div class="content">
+      Спасибо за внимание!<br>
+      Вы готовы приступить к созданию своего первого памятника.<br><br>
+      Переходите в главное меню и выберите "Редактор памятников" или просмотрите "Склад".
+    </div>
+  </div>
+</body>
+</html>
