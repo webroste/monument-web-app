@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Вступительная Анимация</title>
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      font-family: Arial, sans-serif;
+      color: white;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .content {
+      text-align: center;
+      opacity: 0;
+      animation: fadeIn 2s forwards;
+    }
+
+    @keyframes fadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    .swipe {
+      margin-top: 30px;
+      font-size: 18px;
+      color: #00f0ff;
+      cursor: pointer;
+      transition: color 0.3s;
+    }
+
+    .swipe:hover {
+      color: #ff00ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="content">
+    <h1>Приветствуем вас!</h1>
+    <p>Здесь, вы можете создать свой памятник или мемориал, который смогут оценить каждый!</p>
+    <div class="swipe" onclick="swipeRight()">Свайпните вправо для продолжения</div>
+  </div>
+
+  <script>
+    function swipeRight() {
+      window.location.href = "next_intro.html"; // Переход на следующий экран (пока что заглушка)
+    }
+  </script>
+</body>
+</html>
