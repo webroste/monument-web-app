@@ -3,6 +3,6 @@
   "name": "NFT Monuments",
   "url": "https://monument-web-app.vercel.app",
   "iconUrl": "https://monument-web-app.vercel.app/logo.png",
-  "termsOfUseUrl": "https://yourdomain.com/terms",
-  "privacyPolicyUrl": "https://yourdomain.com/privacy"
+  "termsOfUseUrl": "https://monument-web-app.vercel.app/terms",
+  "privacyPolicyUrl": "https://monument-web-app.vercel.app/privacy"
 }
