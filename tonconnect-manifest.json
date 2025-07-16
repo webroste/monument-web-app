@@ -1,8 +1,5 @@
 {
-  "manifestVersion": "0",
-  "name": "NFT Monuments",
   "url": "https://monument-web-app.vercel.app",
-  "iconUrl": "https://monument-web-app.vercel.app/logo.png",
-  "termsOfUseUrl": "https://monument-web-app.vercel.app/terms",
-  "privacyPolicyUrl": "https://monument-web-app.vercel.app/privacy"
+  "name": "NFT Monuments",
+  "iconUrl": "https://monument-web-app.vercel.app/logo.png"
 }
