@@ -10,6 +10,7 @@ const ZONE_DAMAGE = 10;
 const ENEMY_DAMAGE = 15; 
 const ENTITY_MOVE_TICK = 500; // Движение НПС каждые 0.5с
 const ZONE_TICK_MS = 1000; // Проверка зоны каждую 1с
+const SPECTATE_TICK = 100; // Обновление камеры наблюдателя каждые 0.1с
 
 // --- Настройки Генерации Мира и Битвы ---
 const GRID_SIZE = 40; 
@@ -30,6 +31,7 @@ const toggleMapBtn = document.getElementById('toggle-map-btn');
 const playersLeftDisplay = document.getElementById('players-left');
 const safeZoneEl = document.getElementById('safe-zone');
 const attackBtn = document.getElementById('attack-btn');
+const controlsWrapper = document.getElementById('controls-wrapper'); // Новый элемент
 
 const bird = document.getElementById('bird');
 const modeTextDisplay = document.getElementById('mode-text');
@@ -53,13 +55,17 @@ let zoneSize = INITIAL_ZONE_SIZE;
 let zoneX = 0; // Центр зоны в мировых координатах
 let zoneY = 0; 
 
+// Таймеры
+let zoneInterval = null;
+let entityMoveInterval = null;
+let spectateInterval = null;
+
 // Хранилище
 let GAME_MAP = []; 
 let ENTITIES = []; 
 let OBJECTS = [];  
 let exploredMap = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(false)); 
 let playerDotEl = null; 
-let zoneInterval = null;
 
 // --- ФУНКЦИИ ГЕНЕРАЦИИ МИРА И СУЩНОСТЕЙ ---
 
@@ -78,7 +84,7 @@ function getRandomBiome() {
 function generateWorld() {
     const halfGrid = GRID_SIZE / 2;
     GAME_MAP = [];
-    gameObjectsContainer.innerHTML = ''; // Очистка старых биомов
+    gameObjectsContainer.innerHTML = ''; 
 
     // 1. Генерация биомов
     for (let r = 0; r < GRID_SIZE; r++) {
@@ -133,7 +139,7 @@ function generateWorld() {
         lastMove: 0
     });
     
-    for (let i = 1; i < INITIAL_PLAYER_COUNT; i++) {
+    for (let i = 1; i <= INITIAL_PLAYER_COUNT; i++) {
         const x = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
         const y = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
         ENTITIES.push({
@@ -189,13 +195,11 @@ function damageEntity(entity, amount) {
     if (entity.hp <= 0) return;
     entity.hp = Math.max(0, entity.hp - amount);
     
-    // Обновляем HP бар 
     const el = document.getElementById(entity.id);
     const hpFill = el ? el.querySelector('.player-hp-fill') : null;
     if (hpFill) hpFill.style.width = `${entity.hp}%`;
 
     if (entity.hp === 0) {
-        const el = document.getElementById(entity.id);
         if (el) el.remove();
         ENTITIES = ENTITIES.filter(e => e.id !== entity.id);
         checkWinCondition();
@@ -203,18 +207,27 @@ function damageEntity(entity, amount) {
 }
 
 function checkWinCondition() {
-    // Считаем живых игроков (включая центрального)
-    const aliveCount = ENTITIES.filter(e => e.type === 'player').length + (health > 0 ? 1 : 0);
+    const alivePlayers = ENTITIES.filter(e => e.type === 'player' && e.hp > 0);
+    const aliveCount = alivePlayers.length + (health > 0 ? 1 : 0);
     playersLeftDisplay.textContent = aliveCount;
     
-    if (aliveCount === 1 && health > 0) {
-        alert("🎉 ПОБЕДА! Вы единственный выживший! 🎉");
+    if (aliveCount === 1) {
+        if (health > 0) {
+             alert("🎉 ПОБЕДА! Вы единственный выживший! 🎉");
+        } else {
+            // Если игрок мертв, но остался 1 НПС
+             alert("Победа досталась последней птице!");
+        }
         isDead = true;
         clearInterval(zoneInterval);
+        clearInterval(entityMoveInterval);
+        clearInterval(spectateInterval);
     } else if (aliveCount === 0) {
         alert("💀 ПОРАЖЕНИЕ! Все выбыли.");
         isDead = true;
         clearInterval(zoneInterval);
+        clearInterval(entityMoveInterval);
+        clearInterval(spectateInterval);
     }
 }
 
@@ -230,7 +243,6 @@ function moveEntities() {
         const newX = entity.x + dx * entity.speed;
         const newY = entity.y + dy * entity.speed;
         
-        // Проверка границ мира и коллизии (isNpc = true)
         if (Math.abs(newX) < MAX_OFFSET && Math.abs(newY) < MAX_OFFSET && !checkCollision(newX, newY, true)) {
              entity.x = newX;
              entity.y = newY;
@@ -246,7 +258,6 @@ function moveEntities() {
 window.attack = function() {
     if (isDead || !gameStarted) return;
     
-    // Визуальный эффект атаки
     const effect = document.createElement('div');
     effect.classList.add('attack-effect');
     effect.style.left = `50%`; 
@@ -260,7 +271,6 @@ window.attack = function() {
 
 function checkAttackCollision() {
     let hit = false;
-    // Атака на НПС-птиц и Кота
     ENTITIES.filter(e => e.hp > 0).forEach(entity => {
         const distanceX = Math.abs(entity.x - playerX);
         const distanceY = Math.abs(entity.y - playerY);
@@ -271,7 +281,6 @@ function checkAttackCollision() {
             
             const el = document.getElementById(entity.id);
             if (el) {
-                // Визуальное выделение цели
                 el.style.boxShadow = '0 0 10px 5px yellow';
                 setTimeout(() => el.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)', 150);
             }
@@ -282,6 +291,39 @@ function checkAttackCollision() {
 
 // --- ЛОГИКА ЗДОРОВЬЯ, УРОНА И ЗОНЫ ---
 
+function enterSpectatorMode() {
+    // Скрываем элементы управления и птицу игрока
+    controlsWrapper.style.display = 'none';
+    bird.style.opacity = 0;
+    
+    // Сбрасываем центрирование мира, чтобы камера могла следовать
+    gameObjectsContainer.style.transition = 'transform 0.5s ease-out'; // Плавное слежение
+    
+    // Запуск цикла слежения
+    spectateInterval = setInterval(spectateLoop, SPECTATE_TICK);
+}
+
+function spectateLoop() {
+    const alivePlayers = ENTITIES.filter(e => e.type === 'player' && e.hp > 0);
+    
+    if (alivePlayers.length > 0) {
+        // Следим за первым живым НПС
+        const target = alivePlayers[0];
+        
+        // Обновляем мировую позицию, чтобы центрировать НПС
+        worldX = -target.x;
+        worldY = -target.y;
+        
+        // Применяем смещение
+        const transformStyle = `translate(${worldX}px, ${worldY}px)`;
+        gameObjectsContainer.style.transform = transformStyle; 
+    } else {
+        // Если НПС не осталось, и игрок мертв - объявляем конец
+        checkWinCondition(); 
+    }
+}
+
+
 function takeDamage(amount) {
     if (health <= 0 || isDead) return;
     health = Math.max(0, health - amount);
@@ -289,8 +331,11 @@ function takeDamage(amount) {
     
     if (health === 0) {
         isDead = true;
-        alert("💀 ВЫ ВЫБЫЛИ! Наблюдайте за битвой или перезагрузите.");
-        document.querySelectorAll('.btn').forEach(btn => btn.disabled = true);
+        alert("💀 ВЫ ВЫБЫЛИ! Теперь вы наблюдатель.");
+        
+        // Вход в режим наблюдателя
+        enterSpectatorMode(); 
+        
         checkWinCondition(); 
     }
 }
@@ -316,16 +361,14 @@ function checkEnemyDamage() {
 // --- ЛОГИКА ЗОНЫ БИТВЫ ---
 
 function shrinkZone() {
-    if (isDead) return;
+    if (isDead && ENTITIES.filter(e => e.type === 'player' && e.hp > 0).length <= 1) return;
     
     const startSize = zoneSize;
     let endSize = Math.max(FINAL_ZONE_SIZE, startSize - (INITIAL_ZONE_SIZE / 5)); 
     
     if (endSize === zoneSize) return; 
     
-    // Новая позиция центра (смещение)
     const maxShift = (startSize - endSize) / 2;
-    // Сдвиг центра зоны в пределах старой зоны, рандомно
     zoneX += (Math.random() * maxShift) - (maxShift / 2); 
     zoneY += (Math.random() * maxShift) - (maxShift / 2);
     
@@ -334,29 +377,23 @@ function shrinkZone() {
     safeZoneEl.style.width = `${zoneSize}px`;
     safeZoneEl.style.height = `${zoneSize}px`;
     
-    // Рассчитываем смещение левого верхнего угла зоны (относительно 0,0 gameObjectsContainer)
-    // Left = (World Center X + World Center Y) - Half Zone Size
     safeZoneEl.style.left = `${zoneX + MAX_OFFSET - (zoneSize / 2)}px`;
     safeZoneEl.style.top = `${zoneY + MAX_OFFSET - (zoneSize / 2)}px`;
     
-    // Устанавливаем длительность анимации
     safeZoneEl.style.transitionDuration = `${ZONE_SHRINK_DURATION / 1000}s`;
 
-    // Запускаем следующий этап
     setTimeout(shrinkZone, ZONE_SHRINK_DURATION);
 }
 
 function checkZoneDamage() {
-    if (isDead) return;
+    if (health <= 0) return; // Мертвый игрок не получает урон
     
-    // Расчет границ зоны (относительно мировых координат)
     const halfZone = zoneSize / 2;
     const minX = zoneX - halfZone;
     const maxX = zoneX + halfZone;
     const minY = zoneY - halfZone;
     const maxY = zoneY + halfZone;
     
-    // Проверка нахождения игрока в зоне
     const inX = playerX >= minX && playerX <= maxX;
     const inY = playerY >= minY && playerY <= maxY;
     
@@ -377,7 +414,6 @@ function updateGame() {
     const { r, c } = getGridCoords(playerX, playerY);
     updateExploredMap(r, c);
     
-    // Проверяем урон от врагов при движении
     checkEnemyDamage();
 }
 
@@ -405,7 +441,6 @@ function getGridCoords(worldX, worldY) {
 }
 
 function updateExploredMap(r, c) {
-    // ... (Логика карты без изменений) ...
     if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
         
         if (!exploredMap[r][c]) {
@@ -430,7 +465,6 @@ function updateExploredMap(r, c) {
 }
 
 function updateEnemyDots() {
-    // ... (Логика карты без изменений) ...
     ENTITIES.filter(e => e.hp > 0).forEach(entity => {
         const { r, c } = getGridCoords(entity.x, entity.y);
         
@@ -451,7 +485,6 @@ function updateEnemyDots() {
 }
 
 function setupMiniMap() {
-    // ... (Логика карты без изменений) ...
     if (!miniMapContainer) return;
     miniMapContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
     miniMapContainer.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
@@ -467,10 +500,6 @@ function setupMiniMap() {
             miniMapContainer.appendChild(cell);
         }
     }
-}
-
-function checkBlingCollection() {
-    // ... (Логика сбора) ...
 }
 
 
@@ -490,7 +519,7 @@ window.move = function(dx, dy) {
     playerX = newPlayerX;
     playerY = newPlayerY;
     
-    updateGame(); // Обновление при движении
+    updateGame(); 
 }
 
 window.changeMode = function() {
@@ -519,7 +548,7 @@ function startGame() {
     setupMiniMap();
     checkWinCondition();
     
-    // Устанавливаем начальное положение зоны
+    // Сброс и установка зоны
     zoneSize = INITIAL_ZONE_SIZE;
     zoneX = 0;
     zoneY = 0;
@@ -527,12 +556,10 @@ function startGame() {
     safeZoneEl.style.height = `${zoneSize}px`;
     safeZoneEl.style.left = `0px`;
     safeZoneEl.style.top = `0px`;
-    safeZoneEl.style.transitionDuration = '0s'; // Сброс анимации
+    safeZoneEl.style.transitionDuration = '0s'; 
 
-    // Запуск цикла движения сущностей
-    setInterval(moveEntities, ENTITY_MOVE_TICK);
-    
-    // Запуск цикла урона от зоны
+    // Запуск циклов
+    entityMoveInterval = setInterval(moveEntities, ENTITY_MOVE_TICK);
     zoneInterval = setInterval(checkZoneDamage, ZONE_TICK_MS); 
 
     // Запуск уменьшения зоны
@@ -556,5 +583,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     toggleMapBtn.addEventListener('click', toggleMiniMap);
 
+    // Получаем controlsWrapper
+    // Важно: убедитесь, что в index.html есть div id="controls-wrapper", который оборачивает все кнопки
+    // Мы его добавили в предыдущем шаге
+    
     updateHealthBar();
 });
