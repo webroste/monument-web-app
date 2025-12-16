@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Городская Пташка: Рандомный Мир</title>
+    <title>Городская Пташка: Меню и Карта</title>
     <style>
         /* --- Общие Стили --- */
         body {
@@ -13,10 +13,88 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #e0f7fa; /* Светлое небо */
+            background-color: #e0f7fa;
             font-family: sans-serif;
             user-select: none;
             overflow: hidden;
+            transition: background-color 0.5s;
+        }
+
+        /* --- 1. СТАРТОВЫЙ ЭКРАН / МЕНЮ --- */
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #3f51b5; /* Цвет неба ночью */
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 1;
+            transition: opacity 1s ease-out;
+        }
+
+        #start-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .menu-logo {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 2s infinite;
+        }
+        
+        .menu-title {
+            font-size: 32px;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .menu-button {
+            background-color: #ffc107;
+            color: #333;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .menu-button:hover {
+            background-color: #ffeb3b;
+            transform: scale(1.05);
+        }
+        
+        .menu-button:disabled {
+            background-color: #9e9e9e;
+            cursor: not-allowed;
+            color: #555;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-30px);}
+            60% {transform: translateY(-15px);}
+        }
+
+
+        /* --- 2. ИГРОВОЙ ИНТЕРФЕЙС И ГЕЙМПЛЕЙ --- */
+
+        /* Скрываем игру до старта */
+        #game-interface {
+            opacity: 0;
+            transition: opacity 1s;
+        }
+        #game-interface.active {
+            opacity: 1;
         }
 
         /* --- UI Панели --- */
@@ -43,7 +121,7 @@
             border-radius: 5px;
             overflow: hidden;
             margin-left: 5px;
-            display: flex; /* Для выравнивания текста */
+            display: flex;
             align-items: center;
         }
         #health-fill {
@@ -52,12 +130,12 @@
             transition: width 0.3s;
         }
 
-        /* --- Игровое Поле (Вид 3-го лица) --- */
+        /* --- Игровое Поле --- */
         #game-container {
             width: 90vw;
-            height: 50vh; /* Уменьшили высоту */
+            height: 70vh; /* Увеличили основное поле */
             max-width: 500px;
-            max-height: 450px;
+            max-height: 550px;
             border: 4px solid #6d4c41;
             background-color: #f0fff0;
             position: relative;
@@ -67,7 +145,6 @@
 
         /* --- Мир / Биомы (Находятся внутри game-objects) --- */
         #platform {
-            /* Теперь это просто фон контейнера, не используется для смещения */
             position: absolute;
             width: 100%; 
             height: 100%;
@@ -77,10 +154,8 @@
         /* --- Игровые Объекты и Биомы --- */
         #game-objects {
             position: absolute;
-            /* Увеличиваем размер контейнера для всего мира */
             width: 2400px; 
             height: 2400px;
-            /* Смещение, чтобы птичка (0,0) была в центре контейнера */
             top: 50%; 
             left: 50%;
             transform: translate(-50%, -50%);
@@ -93,7 +168,7 @@
         }
         .biome-cell {
             position: absolute;
-            border: 1px solid rgba(0, 0, 0, 0.05); /* Легкая сетка для визуализации */
+            border: 1px solid rgba(0, 0, 0, 0.05);
             box-sizing: border-box;
         }
 
@@ -108,7 +183,6 @@
         .biome-water {
             background-color: #03A9F4;
             opacity: 0.8;
-            /* Добавим рябь */
             background-image: repeating-linear-gradient(0deg, #039BE5 0, #039BE5 2px, #03A9F4 2px, #03A9F4 4px);
         }
         
@@ -118,32 +192,24 @@
             text-shadow: 0 0 5px rgba(255, 255, 0, 0.8);
             animation: pulse 1s infinite alternate;
         }
-        .object-danger {
+        
+        .object-danger, .object-bot { /* Стили для кота и новых ботов */
             background-color: rgba(255, 0, 0, 0.3);
             border: 3px dashed red;
-            width: 100px;
-            height: 100px;
+            width: 40px; 
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 20px;
             color: black;
             font-weight: bold;
-            animation: danger-pulse 0.5s infinite alternate;
             z-index: 5;
+            transition: left 0.5s, top 0.5s; /* Для движения ботов */
         }
-        .object-danger.active {
+        .object-danger.active, .object-bot.active {
             background-color: rgba(255, 0, 0, 0.6);
-        }
-
-        @keyframes pulse {
-            from { opacity: 0.8; }
-            to { opacity: 1; }
-        }
-        @keyframes danger-pulse {
-            from { transform: scale(1.0); }
-            to { transform: scale(1.1); }
         }
 
         /* --- Птичка (Вид от 3-го лица) --- */
@@ -152,7 +218,6 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            /* Камера "дальше" - уменьшаем размер */
             width: 20px; 
             height: 20px;
             border-radius: 50%;
@@ -161,7 +226,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px; /* Уменьшили размер символа */
+            font-size: 14px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); 
             transition: background-color 0.2s;
         }
@@ -174,28 +239,59 @@
 
         /* --- Мини-Карта --- */
         #mini-map-wrapper {
-            width: 90vw;
-            max-width: 500px;
-            margin-top: 10px;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 150px; /* Уменьшили размер */
+            height: 150px; 
             border: 2px solid #6d4c41;
             background-color: #cccccc;
             padding: 5px;
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 50;
+            transform: scale(0); /* Изначально скрыта/свернута */
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+        #mini-map-wrapper.visible {
+            transform: scale(1);
+            opacity: 1;
         }
         #mini-map-content {
             display: grid;
             width: 100%;
-            aspect-ratio: 1 / 1; /* Квадратная карта */
+            aspect-ratio: 1 / 1; 
         }
         .mini-map-cell {
-            opacity: 0.2; /* Изначально не исследовано */
+            opacity: 0.2; 
             border: none;
             transition: opacity 0.5s;
         }
-        /* Стили биомов для мини-карты */
         .mini-map-cell.biome-grass { background-color: #4CAF50; }
         .mini-map-cell.biome-earth { background-color: #8D6E63; }
         .mini-map-cell.biome-water { background-color: #03A9F4; }
+        .mini-map-cell.player-dot { 
+             /* Точка игрока на карте */
+            background-color: yellow !important;
+            border-radius: 50%;
+            opacity: 1 !important;
+        }
+        
+        /* --- Кнопка для карты --- */
+        #toggle-map-btn {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #00bcd4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 60;
+            display: none; /* Скрываем до начала игры */
+        }
         
         /* --- Джойстик/Кнопки Управления --- */
         #controls {
@@ -208,7 +304,7 @@
             border-radius: 10px;
             padding: 10px;
         }
-        /* ... (Стили кнопок остаются прежними) ... */
+        
         .btn {
             background-color: #00bcd4;
             color: white;
@@ -234,39 +330,53 @@
 </head>
 <body>
 
-    <div id="ui-panel">
-        <div style="display: flex; align-items: center;">
-            HP: 
-            <div id="health-bar">
-                <div id="health-fill"></div>
-            </div>
-        </div>
-        <div>✨ Блестяшек: <span id="bling-count">0</span> / 10</div>
-        <div>Режим: <span id="mode-text">Ходьба</span></div>
-    </div>
-
-    <div id="game-container">
-        <div id="platform"></div>
+    <div id="start-screen">
+        <div class="menu-logo">🐦</div>
+        <div class="menu-title">Городская Пташка: Выживание</div>
         
-        <div id="game-objects">
-            </div>
-
-        <div id="bird" class="walking">🐦</div>
-    </div>
-    
-    <div id="mini-map-wrapper">
-        <p style="text-align: center; margin: 0 0 5px 0; font-size: 12px; color: #333;">Исследованная территория (40x40)</p>
-        <div id="mini-map-content">
-            </div>
+        <button id="start-game-btn" class="menu-button">НАЧАТЬ ИГРУ</button>
+        <button id="select-skin-btn" class="menu-button" disabled>Выбрать Скин (В разработке)</button>
     </div>
 
 
-    <div id="controls">
-        <button id="up" class="btn">▲</button>
-        <button id="left" class="btn">◀</button>
-        <button id="right" class="btn">▶</button>
-        <button id="down" class="btn">▼</button>
-        <button id="mode" class="btn">Взлёт / Посадка</button>
+    <div id="game-interface">
+        
+        <button id="toggle-map-btn">Карта</button>
+
+        <div id="ui-panel">
+            <div style="display: flex; align-items: center;">
+                HP: 
+                <div id="health-bar">
+                    <div id="health-fill"></div>
+                </div>
+            </div>
+            <div>✨ Блестяшек: <span id="bling-count">0</span> / 10</div>
+            <div>Режим: <span id="mode-text">Ходьба</span></div>
+        </div>
+
+        <div id="mini-map-wrapper">
+            <p style="text-align: center; margin: 0 0 5px 0; font-size: 12px; color: #333;">Исследованная территория</p>
+            <div id="mini-map-content">
+                </div>
+        </div>
+
+
+        <div id="game-container">
+            <div id="platform"></div>
+            
+            <div id="game-objects">
+                </div>
+
+            <div id="bird" class="walking">🐦</div>
+        </div>
+
+        <div id="controls">
+            <button id="up" class="btn">▲</button>
+            <button id="left" class="btn">◀</button>
+            <button id="right" class="btn">▶</button>
+            <button id="down" class="btn">▼</button>
+            <button id="mode" class="btn">Взлёт / Посадка</button>
+        </div>
     </div>
 
     <script src="game.js"></script> 
