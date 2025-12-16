@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Городская Пташка: Угроза и Здоровье</title>
+    <title>Городская Пташка: Ландшафт Трава/Земля</title>
     <style>
         /* --- Общие Стили --- */
         body {
@@ -13,7 +13,7 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #e0f7fa;
+            background-color: #e0f7fa; /* Светлое небо */
             font-family: sans-serif;
             user-select: none;
             overflow: hidden;
@@ -57,7 +57,7 @@
             max-width: 500px;
             max-height: 500px;
             border: 4px solid #6d4c41;
-            background-color: #fbe9e7;
+            background-color: #f0fff0; /* Светло-зеленый фон для неба/далекого обзора */
             position: relative;
             overflow: hidden;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
@@ -68,9 +68,11 @@
             position: absolute;
             width: 300%; 
             height: 300%;
-            background-color: #b71c1c;
+            /* ОСНОВНОЙ ФОН: Трава */
+            background-color: #4CAF50; 
             background-image: 
-                repeating-linear-gradient(45deg, #c62828 0, #c62828 5px, #b71c1c 5px, #b17c1c 10px);
+                /* Мелкие детали для травы */
+                repeating-linear-gradient(45deg, #66BB6A 0, #66BB6A 5px, #4CAF50 5px, #4CAF50 10px);
             transition: transform 0.1s linear;
             top: -100%; 
             left: -100%;
@@ -110,6 +112,20 @@
         }
 
         /* --- Новые Объекты --- */
+        
+        .object-earth {
+            background-color: #8D6E63; /* Коричневая земля */
+            width: 200px;
+            height: 200px;
+            border-radius: 10px;
+            opacity: 0.9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: white;
+        }
+
         .object-danger {
             background-color: rgba(255, 0, 0, 0.3);
             border: 3px dashed red;
@@ -131,7 +147,7 @@
         }
 
         .object-heal {
-            background-color: #4caf50;
+            background-color: #CDDC39; /* Яркий цвет для ягодной ветки */
             width: 50px;
             height: 50px;
             border-radius: 50%;
@@ -139,6 +155,7 @@
             align-items: center;
             justify-content: center;
             font-size: 20px;
+            border: 2px solid #388E3C;
         }
 
         @keyframes pulse {
