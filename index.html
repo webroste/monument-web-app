@@ -114,7 +114,7 @@
             border-radius: 5px;
             color: #ff6f00;
             font-weight: bold;
-            box-sizing: border-box; /* Убедимся, что паддинг внутри ширины */
+            box-sizing: border-box;
         }
         
         /* Индикатор Здоровья */
@@ -149,15 +149,13 @@
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
         
-        /* --- Зона Королевской Битвы (Новое) --- */
+        /* --- Зона Королевской Битвы --- */
         #safe-zone {
             position: absolute;
-            /* Изначально зона занимает весь мир 2400x2400 */
             border: 5px solid rgba(0, 255, 0, 0.5); 
             box-shadow: 0 0 0 9999px rgba(255, 0, 0, 0.5); 
             box-sizing: border-box;
             pointer-events: none;
-            /* Убедимся, что transitions работают */
             transition: width 1s linear, height 1s linear, top 1s linear, left 1s linear;
             z-index: 50;
         }
@@ -205,7 +203,7 @@
             animation: pulse 1s infinite alternate;
         }
         
-        .object-danger, .object-player, .object-bot { 
+        .object-danger, .object-player { 
             width: 30px;
             height: 30px;
             border-radius: 50%;
@@ -216,6 +214,7 @@
             font-weight: bold;
             z-index: 5;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            position: relative; /* Важно для HP бара */
         }
         
         .object-danger {
@@ -227,7 +226,6 @@
             background-color: #9c27b0;
             color: white;
             border: 2px solid #6a1b9a;
-            position: relative;
         }
         
         .object-player:nth-child(even) { background-color: #00bcd4; }
