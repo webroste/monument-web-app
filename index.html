@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Городская Пташка: Ландшафт Трава/Земля</title>
+    <title>Городская Пташка: Рандомный Мир</title>
     <style>
         /* --- Общие Стили --- */
         body {
@@ -43,6 +43,8 @@
             border-radius: 5px;
             overflow: hidden;
             margin-left: 5px;
+            display: flex; /* Для выравнивания текста */
+            align-items: center;
         }
         #health-fill {
             height: 100%;
@@ -53,79 +55,69 @@
         /* --- Игровое Поле (Вид 3-го лица) --- */
         #game-container {
             width: 90vw;
-            height: 60vh;
+            height: 50vh; /* Уменьшили высоту */
             max-width: 500px;
-            max-height: 500px;
+            max-height: 450px;
             border: 4px solid #6d4c41;
-            background-color: #f0fff0; /* Светло-зеленый фон для неба/далекого обзора */
+            background-color: #f0fff0;
             position: relative;
             overflow: hidden;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
 
-        /* --- Мир/Платформа --- */
+        /* --- Мир / Биомы (Находятся внутри game-objects) --- */
         #platform {
+            /* Теперь это просто фон контейнера, не используется для смещения */
             position: absolute;
-            width: 300%; 
-            height: 300%;
-            /* ОСНОВНОЙ ФОН: Трава */
-            background-color: #4CAF50; 
-            background-image: 
-                /* Мелкие детали для травы */
-                repeating-linear-gradient(45deg, #66BB6A 0, #66BB6A 5px, #4CAF50 5px, #4CAF50 10px);
-            transition: transform 0.1s linear;
-            top: -100%; 
-            left: -100%;
+            width: 100%; 
+            height: 100%;
+            background-color: transparent; 
         }
 
-        /* --- Игровые Объекты --- */
+        /* --- Игровые Объекты и Биомы --- */
         #game-objects {
             position: absolute;
-            width: 100%;
-            height: 100%;
+            /* Увеличиваем размер контейнера для всего мира */
+            width: 2400px; 
+            height: 2400px;
+            /* Смещение, чтобы птичка (0,0) была в центре контейнера */
+            top: 50%; 
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s linear;
         }
         
         .game-object {
             position: absolute;
             font-size: 30px;
-            transform: translate(100%, 100%); 
+        }
+        .biome-cell {
+            position: absolute;
+            border: 1px solid rgba(0, 0, 0, 0.05); /* Легкая сетка для визуализации */
+            box-sizing: border-box;
         }
 
+        /* --- Стили Биомов --- */
+        .biome-grass {
+            background-color: #4CAF50; 
+            background-image: repeating-linear-gradient(45deg, #66BB6A 0, #66BB6A 3px, #4CAF50 3px, #4CAF50 6px);
+        }
+        .biome-earth {
+            background-color: #8D6E63; 
+        }
+        .biome-water {
+            background-color: #03A9F4;
+            opacity: 0.8;
+            /* Добавим рябь */
+            background-image: repeating-linear-gradient(0deg, #039BE5 0, #039BE5 2px, #03A9F4 2px, #03A9F4 4px);
+        }
+        
+        /* --- Объекты --- */
         .object-bling {
             color: gold;
             text-shadow: 0 0 5px rgba(255, 255, 0, 0.8);
             animation: pulse 1s infinite alternate;
         }
-
-        .object-water {
-            background-color: #03a9f4;
-            width: 150px;
-            height: 100px;
-            border-radius: 5px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0.7;
-            font-size: 14px;
-            color: white;
-            text-align: center;
-        }
-
-        /* --- Новые Объекты --- */
-        
-        .object-earth {
-            background-color: #8D6E63; /* Коричневая земля */
-            width: 200px;
-            height: 200px;
-            border-radius: 10px;
-            opacity: 0.9;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            color: white;
-        }
-
         .object-danger {
             background-color: rgba(255, 0, 0, 0.3);
             border: 3px dashed red;
@@ -141,21 +133,8 @@
             animation: danger-pulse 0.5s infinite alternate;
             z-index: 5;
         }
-        
         .object-danger.active {
             background-color: rgba(255, 0, 0, 0.6);
-        }
-
-        .object-heal {
-            background-color: #CDDC39; /* Яркий цвет для ягодной ветки */
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            border: 2px solid #388E3C;
         }
 
         @keyframes pulse {
@@ -167,21 +146,22 @@
             to { transform: scale(1.1); }
         }
 
-        /* --- Птичка --- */
+        /* --- Птичка (Вид от 3-го лица) --- */
         #bird {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 30px;
-            height: 30px;
+            /* Камера "дальше" - уменьшаем размер */
+            width: 20px; 
+            height: 20px;
             border-radius: 50%;
-            border: 3px solid #3e2723;
+            border: 2px solid #3e2723;
             z-index: 10;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 20px;
+            font-size: 14px; /* Уменьшили размер символа */
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); 
             transition: background-color 0.2s;
         }
@@ -192,6 +172,31 @@
             background-color: #795548;
         }
 
+        /* --- Мини-Карта --- */
+        #mini-map-wrapper {
+            width: 90vw;
+            max-width: 500px;
+            margin-top: 10px;
+            border: 2px solid #6d4c41;
+            background-color: #cccccc;
+            padding: 5px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5);
+        }
+        #mini-map-content {
+            display: grid;
+            width: 100%;
+            aspect-ratio: 1 / 1; /* Квадратная карта */
+        }
+        .mini-map-cell {
+            opacity: 0.2; /* Изначально не исследовано */
+            border: none;
+            transition: opacity 0.5s;
+        }
+        /* Стили биомов для мини-карты */
+        .mini-map-cell.biome-grass { background-color: #4CAF50; }
+        .mini-map-cell.biome-earth { background-color: #8D6E63; }
+        .mini-map-cell.biome-water { background-color: #03A9F4; }
+        
         /* --- Джойстик/Кнопки Управления --- */
         #controls {
             margin-top: 20px;
@@ -203,7 +208,7 @@
             border-radius: 10px;
             padding: 10px;
         }
-
+        /* ... (Стили кнопок остаются прежними) ... */
         .btn {
             background-color: #00bcd4;
             color: white;
@@ -215,11 +220,9 @@
             transition: background-color 0.1s;
             margin: 2px;
         }
-
         .btn:active {
             background-color: #0097a7;
         }
-        
         #up { grid-area: up; }
         #down { grid-area: down; }
         #left { grid-area: left; }
@@ -238,7 +241,7 @@
                 <div id="health-fill"></div>
             </div>
         </div>
-        <div>✨ Блестяшек: <span id="bling-count">0</span> / 5</div>
+        <div>✨ Блестяшек: <span id="bling-count">0</span> / 10</div>
         <div>Режим: <span id="mode-text">Ходьба</span></div>
     </div>
 
@@ -250,6 +253,13 @@
 
         <div id="bird" class="walking">🐦</div>
     </div>
+    
+    <div id="mini-map-wrapper">
+        <p style="text-align: center; margin: 0 0 5px 0; font-size: 12px; color: #333;">Исследованная территория (40x40)</p>
+        <div id="mini-map-content">
+            </div>
+    </div>
+
 
     <div id="controls">
         <button id="up" class="btn">▲</button>
