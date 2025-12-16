@@ -8,7 +8,8 @@ const ATTACK_RANGE = 45;
 const PLAYER_DAMAGE = 20; 
 const ZONE_DAMAGE = 10; 
 const ENEMY_DAMAGE = 15; 
-const HEAL_TICK_MS = 500; 
+const ENTITY_MOVE_TICK = 500; // Движение НПС каждые 0.5с
+const ZONE_TICK_MS = 1000; // Проверка зоны каждую 1с
 
 // --- Настройки Генерации Мира и Битвы ---
 const GRID_SIZE = 40; 
@@ -18,10 +19,9 @@ const INITIAL_PLAYER_COUNT = 10;
 const BLING_COUNT = 5; 
 
 // Настройки Зоны
-const INITIAL_ZONE_SIZE = 2400; // Размер мира (2 * MAX_OFFSET)
+const INITIAL_ZONE_SIZE = 2400; 
 const FINAL_ZONE_SIZE = 400; 
-const ZONE_SHRINK_DURATION = 15000; // 15 секунд на уменьшение
-const ZONE_TICK_MS = 1000; // Проверка зоны каждую секунду
+const ZONE_SHRINK_DURATION = 15000; 
 
 // Элементы DOM
 const startScreen = document.getElementById('start-screen');
@@ -50,15 +50,16 @@ let gameStarted = false;
 
 // Зона
 let zoneSize = INITIAL_ZONE_SIZE;
-let zoneX = 0; // Центр зоны
-let zoneY = 0; // Центр зоны
+let zoneX = 0; // Центр зоны в мировых координатах
+let zoneY = 0; 
 
-// Хранилище объектов и сущностей
+// Хранилище
 let GAME_MAP = []; 
 let ENTITIES = []; 
 let OBJECTS = [];  
 let exploredMap = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(false)); 
-let playerDotEl = null; // Для точки игрока на карте
+let playerDotEl = null; 
+let zoneInterval = null;
 
 // --- ФУНКЦИИ ГЕНЕРАЦИИ МИРА И СУЩНОСТЕЙ ---
 
@@ -77,7 +78,8 @@ function getRandomBiome() {
 function generateWorld() {
     const halfGrid = GRID_SIZE / 2;
     GAME_MAP = [];
-    
+    gameObjectsContainer.innerHTML = ''; // Очистка старых биомов
+
     // 1. Генерация биомов
     for (let r = 0; r < GRID_SIZE; r++) {
         GAME_MAP[r] = [];
@@ -107,7 +109,10 @@ function generateWorld() {
         }
     }
 
-    // 2. Рандомно размещаем блестяшки
+    // 2. Создаем Зону (она должна быть первой в game-objects)
+    gameObjectsContainer.appendChild(safeZoneEl);
+
+    // 3. Рандомно размещаем блестяшки
     OBJECTS = [];
     for (let i = 0; i < BLING_COUNT; i++) {
         const x = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
@@ -115,7 +120,7 @@ function generateWorld() {
         OBJECTS.push({ id: 'b' + i, type: 'bling', x: x, y: y, collected: false });
     }
 
-    // 3. Создаем Спящего Кота (теперь движется)
+    // 4. Создаем Спящего Кота и НПС-птиц
     ENTITIES = [];
     ENTITIES.push({
         id: 'cat', 
@@ -128,7 +133,6 @@ function generateWorld() {
         lastMove: 0
     });
     
-    // 4. Создаем НПС-птиц (Королевская Битва)
     for (let i = 1; i < INITIAL_PLAYER_COUNT; i++) {
         const x = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
         const y = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
@@ -154,19 +158,23 @@ function generateWorld() {
         if (obj.type === 'bling') {
             el.classList.add('object-bling');
             el.innerHTML = '✨';
-        } else if (obj.type === 'danger') {
-            el.classList.add('object-danger');
-            el.innerHTML = obj.symbol;
-        } else if (obj.type === 'player') {
-            el.classList.add('object-player');
-            el.innerHTML = obj.symbol;
-            
+        } else {
+            // Создание HP бара для всех сущностей (игроки и кот)
             const hpBar = document.createElement('div');
             hpBar.classList.add('player-hp');
             const hpFill = document.createElement('div');
             hpFill.classList.add('player-hp-fill');
+            hpFill.style.width = '100%'; 
             hpBar.appendChild(hpFill);
             el.appendChild(hpBar);
+
+            if (obj.type === 'danger') {
+                el.classList.add('object-danger');
+                el.innerHTML = obj.symbol;
+            } else if (obj.type === 'player') {
+                el.classList.add('object-player');
+                el.innerHTML = obj.symbol;
+            }
         }
         
         el.style.left = `${obj.x}px`;
@@ -181,12 +189,10 @@ function damageEntity(entity, amount) {
     if (entity.hp <= 0) return;
     entity.hp = Math.max(0, entity.hp - amount);
     
-    // Обновляем HP бар (для НПС)
-    if (entity.type === 'player' || entity.type === 'danger') {
-        const el = document.getElementById(entity.id);
-        const hpFill = el ? el.querySelector('.player-hp-fill') : null;
-        if (hpFill) hpFill.style.width = `${entity.hp}%`;
-    }
+    // Обновляем HP бар 
+    const el = document.getElementById(entity.id);
+    const hpFill = el ? el.querySelector('.player-hp-fill') : null;
+    if (hpFill) hpFill.style.width = `${entity.hp}%`;
 
     if (entity.hp === 0) {
         const el = document.getElementById(entity.id);
@@ -204,13 +210,17 @@ function checkWinCondition() {
     if (aliveCount === 1 && health > 0) {
         alert("🎉 ПОБЕДА! Вы единственный выживший! 🎉");
         isDead = true;
+        clearInterval(zoneInterval);
     } else if (aliveCount === 0) {
         alert("💀 ПОРАЖЕНИЕ! Все выбыли.");
         isDead = true;
+        clearInterval(zoneInterval);
     }
 }
 
 function moveEntities() {
+    if (isDead) return;
+    
     ENTITIES.forEach(entity => {
         if (entity.hp <= 0) return;
         
@@ -239,19 +249,18 @@ window.attack = function() {
     // Визуальный эффект атаки
     const effect = document.createElement('div');
     effect.classList.add('attack-effect');
-    effect.style.left = `50%`; // Эффект центрируется относительно птички в game-container
+    effect.style.left = `50%`; 
     effect.style.top = `50%`;
-    document.getElementById('game-container').appendChild(effect); // Добавляем в game-container
+    document.getElementById('game-container').appendChild(effect); 
     
-    // Удаляем эффект через короткое время
     setTimeout(() => effect.remove(), 400);
 
-    // Проверяем коллизию и наносим урон
     checkAttackCollision(); 
 }
 
 function checkAttackCollision() {
     let hit = false;
+    // Атака на НПС-птиц и Кота
     ENTITIES.filter(e => e.hp > 0).forEach(entity => {
         const distanceX = Math.abs(entity.x - playerX);
         const distanceY = Math.abs(entity.y - playerY);
@@ -262,8 +271,9 @@ function checkAttackCollision() {
             
             const el = document.getElementById(entity.id);
             if (el) {
-                el.style.border = '3px solid yellow';
-                setTimeout(() => el.style.border = '', 100);
+                // Визуальное выделение цели
+                el.style.boxShadow = '0 0 10px 5px yellow';
+                setTimeout(() => el.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)', 150);
             }
         }
     });
@@ -306,44 +316,47 @@ function checkEnemyDamage() {
 // --- ЛОГИКА ЗОНЫ БИТВЫ ---
 
 function shrinkZone() {
+    if (isDead) return;
+    
     const startSize = zoneSize;
     let endSize = Math.max(FINAL_ZONE_SIZE, startSize - (INITIAL_ZONE_SIZE / 5)); 
     
     if (endSize === zoneSize) return; 
     
-    zoneSize = endSize;
-    
-    // Обновляем координаты центра зоны (в мировых координатах)
-    // Мы хотим, чтобы новая зона была где-то вокруг старого центра зоны (zoneX, zoneY)
+    // Новая позиция центра (смещение)
     const maxShift = (startSize - endSize) / 2;
-    zoneX += Math.floor(Math.random() * maxShift) - maxShift / 2;
-    zoneY += Math.floor(Math.random() * maxShift) - maxShift / 2;
-
+    // Сдвиг центра зоны в пределах старой зоны, рандомно
+    zoneX += (Math.random() * maxShift) - (maxShift / 2); 
+    zoneY += (Math.random() * maxShift) - (maxShift / 2);
+    
+    zoneSize = endSize;
 
     safeZoneEl.style.width = `${zoneSize}px`;
     safeZoneEl.style.height = `${zoneSize}px`;
     
-    // Рассчитываем смещение левого верхнего угла зоны относительно (0,0) контейнера gameObjects
-    // (center + MAX_OFFSET) - halfSize
+    // Рассчитываем смещение левого верхнего угла зоны (относительно 0,0 gameObjectsContainer)
+    // Left = (World Center X + World Center Y) - Half Zone Size
     safeZoneEl.style.left = `${zoneX + MAX_OFFSET - (zoneSize / 2)}px`;
     safeZoneEl.style.top = `${zoneY + MAX_OFFSET - (zoneSize / 2)}px`;
     
+    // Устанавливаем длительность анимации
     safeZoneEl.style.transitionDuration = `${ZONE_SHRINK_DURATION / 1000}s`;
 
+    // Запускаем следующий этап
     setTimeout(shrinkZone, ZONE_SHRINK_DURATION);
 }
 
 function checkZoneDamage() {
-    // Центр зоны находится в (zoneX, zoneY).
-    // Левый верхний угол зоны: (zoneX - zoneSize/2, zoneY - zoneSize/2)
-    // Правый нижний угол зоны: (zoneX + zoneSize/2, zoneY + zoneSize/2)
+    if (isDead) return;
     
+    // Расчет границ зоны (относительно мировых координат)
     const halfZone = zoneSize / 2;
     const minX = zoneX - halfZone;
     const maxX = zoneX + halfZone;
     const minY = zoneY - halfZone;
     const maxY = zoneY + halfZone;
     
+    // Проверка нахождения игрока в зоне
     const inX = playerX >= minX && playerX <= maxX;
     const inY = playerY >= minY && playerY <= maxY;
     
@@ -364,7 +377,7 @@ function updateGame() {
     const { r, c } = getGridCoords(playerX, playerY);
     updateExploredMap(r, c);
     
-    checkBlingCollection();
+    // Проверяем урон от врагов при движении
     checkEnemyDamage();
 }
 
@@ -373,7 +386,6 @@ function checkCollision(targetX, targetY, isNpc = false) {
 
     const { r, c } = getGridCoords(targetX, targetY);
     
-    // Проверка, что мы не вышли за границы мира
     if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return true;
     
     const targetBiome = GAME_MAP[r][c];
@@ -387,12 +399,13 @@ function checkCollision(targetX, targetY, isNpc = false) {
 
 function getGridCoords(worldX, worldY) {
     const halfGrid = GRID_SIZE / 2;
-    const c = Math.floor(worldX / CELL_SIZE) + halfGrid;
-    const r = Math.floor(worldY / CELL_SIZE) + halfGrid;
+    const c = Math.floor((worldX + MAX_OFFSET) / CELL_SIZE);
+    const r = Math.floor((worldY + MAX_OFFSET) / CELL_SIZE);
     return { r: r, c: c };
 }
 
 function updateExploredMap(r, c) {
+    // ... (Логика карты без изменений) ...
     if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
         
         if (!exploredMap[r][c]) {
@@ -417,6 +430,7 @@ function updateExploredMap(r, c) {
 }
 
 function updateEnemyDots() {
+    // ... (Логика карты без изменений) ...
     ENTITIES.filter(e => e.hp > 0).forEach(entity => {
         const { r, c } = getGridCoords(entity.x, entity.y);
         
@@ -437,6 +451,7 @@ function updateEnemyDots() {
 }
 
 function setupMiniMap() {
+    // ... (Логика карты без изменений) ...
     if (!miniMapContainer) return;
     miniMapContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
     miniMapContainer.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
@@ -475,7 +490,7 @@ window.move = function(dx, dy) {
     playerX = newPlayerX;
     playerY = newPlayerY;
     
-    updateGame();
+    updateGame(); // Обновление при движении
 }
 
 window.changeMode = function() {
@@ -506,22 +521,22 @@ function startGame() {
     
     // Устанавливаем начальное положение зоны
     zoneSize = INITIAL_ZONE_SIZE;
+    zoneX = 0;
+    zoneY = 0;
     safeZoneEl.style.width = `${zoneSize}px`;
     safeZoneEl.style.height = `${zoneSize}px`;
     safeZoneEl.style.left = `0px`;
     safeZoneEl.style.top = `0px`;
-    
+    safeZoneEl.style.transitionDuration = '0s'; // Сброс анимации
+
     // Запуск цикла движения сущностей
-    setInterval(moveEntities, HEAL_TICK_MS);
-    
-    // Запуск цикла урона и обновления
-    setInterval(updateGame, 100); 
+    setInterval(moveEntities, ENTITY_MOVE_TICK);
     
     // Запуск цикла урона от зоны
-    setInterval(checkZoneDamage, ZONE_TICK_MS); 
+    zoneInterval = setInterval(checkZoneDamage, ZONE_TICK_MS); 
 
     // Запуск уменьшения зоны
-    setTimeout(shrinkZone, 5000); // Даем 5 секунд на старт
+    setTimeout(shrinkZone, 5000); 
 }
 
 function toggleMiniMap() {
