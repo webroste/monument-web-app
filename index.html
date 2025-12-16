@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Городская Пташка: Мини-Макет</title>
+    <title>Городская Пташка: Угроза и Здоровье</title>
     <style>
         /* --- Общие Стили --- */
         body {
@@ -13,9 +13,41 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            background-color: #e0f7fa; /* Небо */
+            background-color: #e0f7fa;
             font-family: sans-serif;
-            user-select: none; /* Убираем выделение текста для кнопок */
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* --- UI Панели --- */
+        #ui-panel {
+            width: 90vw;
+            max-width: 500px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 5px 15px;
+            background-color: #fff3e0;
+            border-radius: 5px;
+            color: #ff6f00;
+            font-weight: bold;
+        }
+        
+        /* Индикатор Здоровья */
+        #health-bar {
+            width: 100px;
+            height: 15px;
+            background-color: #ccc;
+            border: 1px solid #ff6f00;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-left: 5px;
+        }
+        #health-fill {
+            height: 100%;
+            background-color: #ff0000;
+            transition: width 0.3s;
         }
 
         /* --- Игровое Поле (Вид 3-го лица) --- */
@@ -24,53 +56,132 @@
             height: 60vh;
             max-width: 500px;
             max-height: 500px;
-            border: 4px solid #6d4c41; /* Темные стены */
-            background-color: #fbe9e7; /* Цвет здания/платформы */
+            border: 4px solid #6d4c41;
+            background-color: #fbe9e7;
             position: relative;
-            overflow: hidden; /* Важно, чтобы игровое поле было 'обрезано' */
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
 
         /* --- Мир/Платформа --- */
         #platform {
             position: absolute;
-            width: 300%; /* Увеличиваем, чтобы можно было перемещать */
+            width: 300%; 
             height: 300%;
-            background-color: #b71c1c; /* Черепичная крыша */
+            background-color: #b71c1c;
             background-image: 
-                repeating-linear-gradient(45deg, #c62828 0, #c62828 5px, #b71c1c 5px, #b71c1c 10px);
-            transition: transform 0.1s linear; /* Плавное перемещение */
-            /* Начальное положение: смещено так, чтобы птичка (0,0) была в центре контейнера */
+                repeating-linear-gradient(45deg, #c62828 0, #c62828 5px, #b71c1c 5px, #b17c1c 10px);
+            transition: transform 0.1s linear;
             top: -100%; 
             left: -100%;
         }
 
-        /* --- Птичка (Всегда в Центре Экрана) --- */
+        /* --- Игровые Объекты --- */
+        #game-objects {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .game-object {
+            position: absolute;
+            font-size: 30px;
+            transform: translate(100%, 100%); 
+        }
+
+        .object-bling {
+            color: gold;
+            text-shadow: 0 0 5px rgba(255, 255, 0, 0.8);
+            animation: pulse 1s infinite alternate;
+        }
+
+        .object-water {
+            background-color: #03a9f4;
+            width: 150px;
+            height: 100px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            font-size: 14px;
+            color: white;
+            text-align: center;
+        }
+
+        /* --- Новые Объекты --- */
+        .object-danger {
+            background-color: rgba(255, 0, 0, 0.3);
+            border: 3px dashed red;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            color: black;
+            font-weight: bold;
+            animation: danger-pulse 0.5s infinite alternate;
+            z-index: 5;
+        }
+        
+        .object-danger.active {
+            background-color: rgba(255, 0, 0, 0.6);
+        }
+
+        .object-heal {
+            background-color: #4caf50;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.8; }
+            to { opacity: 1; }
+        }
+        @keyframes danger-pulse {
+            from { transform: scale(1.0); }
+            to { transform: scale(1.1); }
+        }
+
+        /* --- Птичка --- */
         #bird {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 25px;
-            height: 25px;
-            background-color: #795548; /* Коричневая */
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
-            border: 2px solid #3e2723;
+            border: 3px solid #3e2723;
             z-index: 10;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
-            /* Имитация 3D: небольшая тень */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); 
+            font-size: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4); 
+            transition: background-color 0.2s;
+        }
+        #bird.flying {
+            background-color: #ff9800;
+        }
+        #bird.walking {
+            background-color: #795548;
         }
 
         /* --- Джойстик/Кнопки Управления --- */
         #controls {
             margin-top: 20px;
             display: grid;
-            grid-template-areas: ". up ." "left . right" ". down .";
-            width: 150px;
-            height: 150px;
+            grid-template-areas: ". up ." "left mode right" ". down .";
+            width: 200px;
+            height: 180px;
             background-color: #ffffff90;
             border-radius: 10px;
             padding: 10px;
@@ -85,38 +196,42 @@
             cursor: pointer;
             border-radius: 5px;
             transition: background-color 0.1s;
+            margin: 2px;
         }
 
         .btn:active {
             background-color: #0097a7;
         }
-
+        
         #up { grid-area: up; }
         #down { grid-area: down; }
         #left { grid-area: left; }
         #right { grid-area: right; }
+        #mode { grid-area: mode; background-color: #8bc34a; }
+        #mode:active { background-color: #689f38; }
 
-        /* --- Инфо-панель --- */
-        #info {
-            margin-top: 10px;
-            padding: 5px 15px;
-            background-color: #fff3e0;
-            border-radius: 5px;
-            color: #ff6f00;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
 
-    <div id="info">
-        Координаты (X, Y): <span id="coords">0, 0</span>
+    <div id="ui-panel">
+        <div style="display: flex; align-items: center;">
+            HP: 
+            <div id="health-bar">
+                <div id="health-fill"></div>
+            </div>
+        </div>
+        <div>✨ Блестяшек: <span id="bling-count">0</span> / 5</div>
+        <div>Режим: <span id="mode-text">Ходьба</span></div>
     </div>
 
     <div id="game-container">
         <div id="platform"></div>
         
-        <div id="bird">🐦</div>
+        <div id="game-objects">
+            </div>
+
+        <div id="bird" class="walking">🐦</div>
     </div>
 
     <div id="controls">
@@ -124,74 +239,9 @@
         <button id="left" class="btn">◀</button>
         <button id="right" class="btn">▶</button>
         <button id="down" class="btn">▼</button>
+        <button id="mode" class="btn">Взлёт / Посадка</button>
     </div>
 
-    <script>
-        const platform = document.getElementById('platform');
-        const coordsDisplay = document.getElementById('coords');
-
-        // Константы для игры
-        const STEP_SIZE = 20; // Величина смещения в пикселях за один шаг
-        const MAX_OFFSET = 1000; // Ограничение на максимальное смещение мира
-
-        // Текущее смещение платформы (мир)
-        let worldX = 0;
-        let worldY = 0;
-
-        // Позиция птички в мире (для отображения в инфо-панели)
-        let playerWorldX = 0;
-        let playerWorldY = 0;
-
-        /**
-         * Обновляет позицию платформы (мира) и отображает координаты птички.
-         * В режиме от 3-го лица мы двигаем не персонажа, а фон.
-         * Например: если птичка идет ВПРАВО, мы сдвигаем фон ВЛЕВО.
-         */
-        function updateGame() {
-            platform.style.transform = `translate(${worldX}px, ${worldY}px)`;
-            coordsDisplay.textContent = `${playerWorldX}, ${playerWorldY}`;
-        }
-
-        /**
-         * Перемещает птичку/мир.
-         * @param {number} dx - смещение по X (1 или -1).
-         * @param {number} dy - смещение по Y (1 или -1).
-         */
-        function move(dx, dy) {
-            
-            // Проверка, чтобы не уйти слишком далеко за пределы "мира"
-            // (dx > 0) значит движение вправо, что соответствует (worldX < MAX_OFFSET)
-            if (dx !== 0 && ((dx > 0 && worldX >= MAX_OFFSET) || (dx < 0 && worldX <= -MAX_OFFSET))) {
-                 console.log("Граница мира X");
-                 return;
-            }
-            if (dy !== 0 && ((dy > 0 && worldY >= MAX_OFFSET) || (dy < 0 && worldY <= -MAX_OFFSET))) {
-                 console.log("Граница мира Y");
-                 return;
-            }
-
-            // Движение птички/мира:
-            // - Движение птички ВПРАВО (dx=1) => Сдвиг мира ВЛЕВО (worldX - STEP_SIZE)
-            // - Движение птички ВНИЗ (dy=1)   => Сдвиг мира ВВЕРХ (worldY - STEP_SIZE)
-            worldX -= dx * STEP_SIZE;
-            worldY -= dy * STEP_SIZE;
-            
-            // Обновляем "мировые" координаты птички для отображения:
-            playerWorldX += dx;
-            playerWorldY += dy;
-
-            updateGame();
-        }
-
-        // --- Обработчики Кнопок ---
-        document.getElementById('up').addEventListener('click', () => move(0, -1));
-        document.getElementById('down').addEventListener('click', () => move(0, 1));
-        document.getElementById('left').addEventListener('click', () => move(-1, 0));
-        document.getElementById('right').addEventListener('click', () => move(1, 0));
-
-        // Инициализация
-        updateGame();
-
-    </script>
+    <script src="game.js"></script> 
 </body>
 </html>
