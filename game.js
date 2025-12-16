@@ -2,32 +2,37 @@
 
 // --- Настройка Игры ---
 const STEP_SIZE = 30;
-const MAX_OFFSET = 1200; // Максимальный размер мира в пикселях (2400x2400)
-const BIRD_RADIUS_COLLISION = 15; 
-
-const DAMAGE_RATE = 5;     // Урон от Кота
-const HEAL_TICK_MS = 300;  // Интервал проверки (0.3 сек)
+const MAX_OFFSET = 1200; 
+const BIRD_RADIUS_COLLISION = 10; // Уменьшен для новой птички 
+const DAMAGE_RATE = 5;     
+const BOT_DAMAGE_RATE = 10; // Урон от ботов
+const HEAL_TICK_MS = 300; 
+const BOT_MOVE_INTERVAL = 500; // Боты двигаются каждые 0.5 сек
 
 // --- Настройки Генерации Мира ---
-const GRID_SIZE = 40; // Размер сетки (40x40 ячеек)
-const CELL_SIZE = 60; // Размер одной ячейки биома в пикселях
-
-// Процентное соотношение биомов
+const GRID_SIZE = 40; 
+const CELL_SIZE = 60; 
 const BIOME_PROBABILITIES = {
-    'grass': 0.60, // Трава - 60%
-    'earth': 0.25, // Земля - 25%
-    'water': 0.15, // Вода - 15%
+    'grass': 0.60, 
+    'earth': 0.25, 
+    'water': 0.15, 
 };
-const BLING_COUNT = 10; // Общее количество блестяшек
+const BLING_COUNT = 10; 
+const BOT_COUNT = 3; // Количество агрессивных ботов
 
 // Элементы DOM
+const startScreen = document.getElementById('start-screen');
+const gameInterface = document.getElementById('game-interface');
+const toggleMapBtn = document.getElementById('toggle-map-btn');
+
 const platform = document.getElementById('platform');
 const bird = document.getElementById('bird');
 const blingCountDisplay = document.getElementById('bling-count');
 const modeTextDisplay = document.getElementById('mode-text');
 const gameObjectsContainer = document.getElementById('game-objects');
 const healthFill = document.getElementById('health-fill');
-const miniMapContainer = document.getElementById('mini-map-content'); // Элемент для мини-карты
+const miniMapContainer = document.getElementById('mini-map-content');
+const miniMapWrapper = document.getElementById('mini-map-wrapper');
 
 // --- Игровые Переменные ---
 let health = 100;
@@ -37,11 +42,13 @@ let worldY = 0;
 let playerX = 0; 
 let playerY = 0; 
 let isDead = false;
+let gameStarted = false; // Новое состояние
 
 // Хранилище объектов и биомов
-let GAME_MAP = []; // Хранит сетку биомов
-let OBJECTS = [];  // Хранит блестяшки и врагов
-let exploredMap = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(false)); // Для мини-карты
+let GAME_MAP = []; 
+let OBJECTS = []; 
+let exploredMap = Array(GRID_SIZE).fill(0).map(() => Array(GRID_SIZE).fill(false)); 
+let botInterval = null;
 
 // --- ФУНКЦИИ ГЕНЕРАЦИИ МИРА ---
 
@@ -54,7 +61,7 @@ function getRandomBiome() {
             return biome;
         }
     }
-    return 'grass'; // По умолчанию
+    return 'grass';
 }
 
 function generateWorld() {
@@ -65,7 +72,6 @@ function generateWorld() {
     for (let r = 0; r < GRID_SIZE; r++) {
         GAME_MAP[r] = [];
         for (let c = 0; c < GRID_SIZE; c++) {
-            // Преобразуем координаты сетки в мировые координаты (пиксели)
             const world_x = (c - halfGrid) * CELL_SIZE;
             const world_y = (r - halfGrid) * CELL_SIZE;
 
@@ -75,10 +81,11 @@ function generateWorld() {
                 type: biome_type,
                 x: world_x,
                 y: world_y,
-                size: CELL_SIZE
+                size: CELL_SIZE,
+                r: r, c: c // Сохраняем координаты сетки
             };
             
-            // Визуализируем биом (для упрощения используем контейнер gameObjectsContainer)
+            // Визуализируем биом
             const el = document.createElement('div');
             el.classList.add('biome-cell');
             el.classList.add(`biome-${biome_type}`);
@@ -91,58 +98,106 @@ function generateWorld() {
         }
     }
 
-    // 2. Рандомно размещаем блестяшки и Спящего Кота
+    // 2. Рандомно размещаем блестяшки, Кота и Ботов
     OBJECTS = [];
     
-    // Размещение блестяшек
+    // Блестяшки
     for (let i = 0; i < BLING_COUNT; i++) {
-        // Рандомные координаты в пределах MAX_OFFSET
+        const x = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
+        const y = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
+        OBJECTS.push({ id: 'b' + i, type: 'bling', x: x, y: y, collected: false });
+    }
+
+    // Спящий Кот (Стационарная опасность)
+    OBJECTS.push({
+        id: 'd1', type: 'danger', x: 500, y: -500, w: 100, h: 100, active: true, name: 'Спящий Кот'
+    });
+    
+    // Агрессивные Боты (Новое)
+    for (let i = 0; i < BOT_COUNT; i++) {
         const x = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
         const y = Math.floor(Math.random() * (2 * MAX_OFFSET)) - MAX_OFFSET;
         OBJECTS.push({
-            id: 'b' + i, 
-            type: 'bling', 
+            id: 'bot' + i, 
+            type: 'bot', 
             x: x, 
             y: y, 
-            collected: false
+            w: 40, 
+            h: 40, 
+            symbol: '🦅', // Агрессивная птица
+            speed: STEP_SIZE,
+            lastMove: 0
         });
     }
-
-    // Размещение Спящего Кота (Босса)
-    OBJECTS.push({
-        id: 'd1', 
-        type: 'danger', 
-        x: 500, // Фиксированное местоположение для легкого поиска
-        y: -500, 
-        w: 100, 
-        h: 100, 
-        active: true, 
-        name: 'Спящий Кот'
-    });
 
     // 3. Добавляем объекты на карту
     OBJECTS.forEach(obj => {
         const el = document.createElement('div');
         el.id = obj.id;
         el.classList.add('game-object');
+        el.classList.add(`object-${obj.type}`);
         el.style.left = `${obj.x}px`;
         el.style.top = `${obj.y}px`;
 
         if (obj.type === 'bling') {
-            el.classList.add('object-bling');
             el.innerHTML = '✨';
         } else if (obj.type === 'danger') {
-            el.classList.add('object-danger');
             el.innerHTML = `⚠️<br>${obj.name}`;
             el.style.width = `${obj.w}px`;
             el.style.height = `${obj.h}px`;
-            if (obj.active) el.classList.add('active');
+        } else if (obj.type === 'bot') {
+            el.innerHTML = obj.symbol;
+            el.style.width = `${obj.w}px`;
+            el.style.height = `${obj.h}px`;
         }
         gameObjectsContainer.appendChild(el);
     });
 }
 
-// --- УПРОЩЕННАЯ ЛОГИКА ЗДОРОВЬЯ (Клубника удалена) ---
+// --- ЛОГИКА БОТОВ (Новое) ---
+
+function moveBots() {
+    if (isDead) return;
+    
+    OBJECTS.filter(o => o.type === 'bot').forEach(bot => {
+        
+        // Простая логика: бот делает случайный шаг
+        const dx = Math.floor(Math.random() * 3) - 1; // -1, 0, 1
+        const dy = Math.floor(Math.random() * 3) - 1; 
+
+        if (dx === 0 && dy === 0) return;
+
+        const newX = bot.x + dx * bot.speed;
+        const newY = bot.y + dy * bot.speed;
+
+        // Обновляем позицию бота, если она в пределах мира
+        if (Math.abs(newX) < MAX_OFFSET && Math.abs(newY) < MAX_OFFSET) {
+             bot.x = newX;
+             bot.y = newY;
+             const botEl = document.getElementById(bot.id);
+             if (botEl) {
+                 botEl.style.left = `${bot.x}px`;
+                 botEl.style.top = `${bot.y}px`;
+             }
+        }
+        
+        // Проверка урона от бота
+        checkBotDamage(bot);
+    });
+}
+
+function checkBotDamage(bot) {
+    const distanceX = Math.abs(bot.x - playerX);
+    const distanceY = Math.abs(bot.y - playerY);
+    
+    // Если бот находится очень близко и игрок не летит
+    if (distanceX < 30 && distanceY < 30 && !isFlying) {
+        takeDamage(BOT_DAMAGE_RATE);
+        console.log("Урон от бота!");
+    }
+}
+
+// --- ЛОГИКА ЗДОРОВЬЯ ---
 
 function takeDamage(amount) {
     if (health <= 0 || isDead) return;
@@ -152,12 +207,12 @@ function takeDamage(amount) {
         isDead = true;
         alert("💀 ВАША ПТИЧКА УМЕРЛА! Игра окончена. Перезагрузите страницу.");
         document.querySelectorAll('.btn').forEach(btn => btn.disabled = true);
+        clearInterval(botInterval); // Останавливаем ботов
     }
 }
 
 function updateHealthBar() {
     healthFill.style.width = `${health}%`;
-    // ... (логика цвета остается прежней) ...
     if (health < 30) {
          healthFill.style.backgroundColor = 'darkred';
     } else if (health < 60) {
@@ -167,41 +222,72 @@ function updateHealthBar() {
     }
 }
 
-// --- ЛОГИКА ИССЛЕДОВАНИЯ И КАРТЫ ---
+// --- ЛОГИКА КАРТЫ ---
 
 function getGridCoords(worldX, worldY) {
     const halfGrid = GRID_SIZE / 2;
-    // Преобразуем мировые координаты (playerX, playerY) в координаты сетки
     const c = Math.floor(worldX / CELL_SIZE) + halfGrid;
     const r = Math.floor(worldY / CELL_SIZE) + halfGrid;
     return { r: r, c: c };
 }
 
+let playerDotEl = null;
+
 function updateExploredMap(r, c) {
-    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE && !exploredMap[r][c]) {
-        exploredMap[r][c] = true;
-        // Здесь мы должны обновить мини-карту
-        if (miniMapContainer) {
-            // Для упрощения, просто меняем цвет ячейки на карте
+    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+        
+        // 1. Отмечаем исследованную ячейку
+        if (!exploredMap[r][c]) {
+            exploredMap[r][c] = true;
             const miniMapCell = document.getElementById(`map-cell-${r}-${c}`);
             if (miniMapCell) {
                 miniMapCell.style.opacity = 1;
             }
         }
+        
+        // 2. Обновляем точку игрока
+        if (!playerDotEl) {
+            playerDotEl = document.createElement('div');
+            playerDotEl.classList.add('mini-map-cell', 'player-dot');
+            miniMapContainer.appendChild(playerDotEl);
+        }
+        
+        // Смещаем точку игрока на новую позицию
+        playerDotEl.style.gridRowStart = r + 1; 
+        playerDotEl.style.gridColumnStart = c + 1;
     }
 }
 
-// --- ЛОГИКА ОБНОВЛЕНИЯ ИГРЫ И КОЛЛИЗИЙ ---
+function setupMiniMap() {
+    if (!miniMapContainer) return;
+    miniMapContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+    miniMapContainer.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
+    
+    for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+            const biome = GAME_MAP[r][c];
+            const cell = document.createElement('div');
+            cell.id = `map-cell-${r}-${c}`;
+            cell.classList.add('mini-map-cell');
+            cell.classList.add(`biome-${biome.type}`);
+            
+            cell.style.opacity = 0.2; 
+            miniMapContainer.appendChild(cell);
+        }
+    }
+}
+
+// --- ЛОГИКА ИГРОВОГО ЦИКЛА ---
 
 function updateGame() {
-    if (isDead) return;
+    if (isDead || !gameStarted) return;
 
     // 1. Смещаем мир/платформу и игровые объекты
+    // worldX и worldY теперь смещают gameObjectsContainer
     const transformStyle = `translate(${worldX}px, ${worldY}px)`;
-    // Платформа теперь просто фон, биомы внутри gameObjectsContainer
     gameObjectsContainer.style.transform = transformStyle; 
     
-    // 2. Обновляем исследование
+    // 2. Обновляем исследование и точку на карте
     const { r, c } = getGridCoords(playerX, playerY);
     updateExploredMap(r, c);
     
@@ -211,6 +297,11 @@ function updateGame() {
     // 4. Обновляем UI
     const collectedCount = OBJECTS.filter(o => o.type === 'bling' && o.collected).length;
     blingCountDisplay.textContent = collectedCount;
+    
+    if (collectedCount === BLING_COUNT) {
+        alert("🏆 ПОБЕДА! Вы собрали все блестяшки! 🏆");
+        // Возможно, здесь стоит остановить игру
+    }
 }
 
 function checkBlingCollection() {
@@ -239,8 +330,6 @@ function checkDanger() {
     
     if (isInDanger) {
         dangerEl.classList.add('active'); 
-        
-        // Урон наносится только если птичка не летает 
         if (!isFlying) {
             takeDamage(DAMAGE_RATE); 
         }
@@ -252,10 +341,9 @@ function checkDanger() {
 function checkCollision(targetX, targetY) {
     if (isFlying) return false;
 
-    // Получаем координаты сетки, куда мы хотим пойти
     const { r, c } = getGridCoords(targetX, targetY);
     
-    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return true; // Граница мира
+    if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return true;
     
     const targetBiome = GAME_MAP[r][c];
 
@@ -270,18 +358,16 @@ function checkCollision(targetX, targetY) {
 // --- УПРАВЛЕНИЕ ---
 
 window.move = function(dx, dy) {
-    if (isDead || (dx === 0 && dy === 0)) return;
+    if (isDead || !gameStarted || (dx === 0 && dy === 0)) return;
 
     const newPlayerX = playerX + dx * STEP_SIZE;
     const newPlayerY = playerY + dy * STEP_SIZE;
 
-    // Проверка коллизии с биомами
     if (checkCollision(newPlayerX, newPlayerY)) {
         console.log("❌ Нельзя идти сюда! Вода или преграда.");
         return;
     }
 
-    // Перемещение
     worldX -= dx * STEP_SIZE;
     worldY -= dy * STEP_SIZE;
     playerX = newPlayerX;
@@ -291,49 +377,63 @@ window.move = function(dx, dy) {
 }
 
 window.changeMode = function() {
-    if (isDead) return;
+    if (isDead || !gameStarted) return;
+    
     isFlying = !isFlying;
     
     bird.classList.toggle('flying', isFlying);
     bird.classList.toggle('walking', !isFlying);
     modeTextDisplay.textContent = isFlying ? 'Полёт' : 'Ходьба';
     
-    // Проверка опасности (для активации урона при приземлении)
     checkDanger();
 }
 
+// --- ЛОГИКА МЕНЮ И СТАРТА ---
 
-// --- ИНИЦИАЛИЗАЦИЯ И МИНИ-КАРТА ---
+function startGame() {
+    if (gameStarted) return;
 
-function setupMiniMap() {
-    if (!miniMapContainer) return;
-    miniMapContainer.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
-    miniMapContainer.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
+    gameStarted = true;
     
-    for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-            const biome = GAME_MAP[r][c];
-            const cell = document.createElement('div');
-            cell.id = `map-cell-${r}-${c}`;
-            cell.classList.add('mini-map-cell');
-            cell.classList.add(`biome-${biome.type}`);
-            
-            // Изначально все неисследовано (полупрозрачно)
-            cell.style.opacity = 0.2; 
-            
-            miniMapContainer.appendChild(cell);
-        }
-    }
+    // Скрываем меню с анимацией
+    startScreen.classList.add('hidden');
+    
+    // Показываем игру
+    gameInterface.classList.add('active');
+    toggleMapBtn.style.display = 'block';
+
+    // 1. Генерируем мир
+    generateWorld();
+    
+    // 2. Настраиваем мини-карту
+    setupMiniMap();
+    
+    // 3. Запускаем циклы
+    setInterval(function() {
+         if (!isDead) {
+             checkDanger();
+             checkBlingCollection(); 
+             // Проверка урона от ботов происходит в moveBots()
+         }
+    }, HEAL_TICK_MS); 
+    
+    // Запускаем движение ботов
+    botInterval = setInterval(moveBots, BOT_MOVE_INTERVAL);
+
+    // 4. Первый рендер
+    updateGame();
+    updateHealthBar();
 }
 
-// --- Инициализация и Циклы ---
+function toggleMiniMap() {
+    miniMapWrapper.classList.toggle('visible');
+}
+
+// --- Инициализация ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Получаем элемент мини-карты после загрузки DOM
-    window.miniMapContainer = document.getElementById('mini-map-content');
-
-    generateWorld(); // Генерируем мир перед настройкой карты
-    setupMiniMap();  // Настраиваем мини-карту
+    // Привязка кнопок меню
+    document.getElementById('start-game-btn').addEventListener('click', startGame);
     
     // Привязка управления к кнопкам
     document.getElementById('mode').addEventListener('click', window.changeMode);
@@ -341,16 +441,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('down').addEventListener('click', () => window.move(0, 1));
     document.getElementById('left').addEventListener('click', () => window.move(-1, 0));
     document.getElementById('right').addEventListener('click', () => window.move(1, 0));
+    
+    // Привязка кнопки карты
+    toggleMapBtn.addEventListener('click', toggleMiniMap);
 
-    // Основной цикл игры (для постоянной проверки состояния)
-    setInterval(function() {
-         if (!isDead) {
-             checkDanger();
-             checkBlingCollection(); // Проверка сбора предметов
-         }
-    }, HEAL_TICK_MS); 
-
-    // Запуск
-    updateGame();
+    // Начальное состояние
     updateHealthBar();
 });
