@@ -16,9 +16,11 @@ const GAME_CONSTANTS = {
     STAMINA_DRAIN: 2.0,       // Трата за тик
     STAMINA_REGEN: 1.5,       // Регенерация за тик
     ATTACK_RANGE: 100,
-    DAMAGE_RATE: 1000         // Интервал для нанесения урона зоной (1 секунда)
+    FRAME_RATE_DIVIDER: 20,   // Частота обновления 20 FPS (1000ms / 50ms)
+    DAMAGE_RATE: 1000         
 };
 
+// ... (остальной код gameState, els - без изменений)
 let gameState = {
     x: 0, 
     y: 0,
@@ -43,14 +45,13 @@ const els = {
     btnFly: document.getElementById('btn-fly')
 };
 
+
 // --- УТИЛИТЫ ---
 
-/** Находит ближайшую живую сущность (кроме себя) к указанным координатам. */
 function findClosestTarget(x, y, excludeId) {
     let closest = null;
     let minDist = Infinity;
     
-    // Ищем среди всех живых, включая игрока
     const allLiving = [
         ...gameState.entities.filter(e => e.hp > 0),
         { id: 'player', x: gameState.x, y: gameState.y, hp: gameState.hp }
@@ -66,11 +67,10 @@ function findClosestTarget(x, y, excludeId) {
     return closest;
 }
 
-// --- ИНИЦИАЛИЗАЦИЯ ---
+// --- ИНИЦИАЛИЗАЦИЯ И ЛУПЫ ---
 
 window.Game = {
     start() {
-        // ... (UI setup remains the same)
         document.getElementById('start-screen').classList.add('hidden');
         document.getElementById('game-over-screen').classList.add('hidden');
         
@@ -96,13 +96,14 @@ window.Game = {
     },
 
     runLoops() {
+        // Main loop is 50ms (20 times per second)
         gameState.gameLoop = setInterval(() => {
             this.handleInput();
-            this.handlePlayerStamina(); // Отдельная функция для игрока
+            this.handlePlayerStamina();
             this.updateEntitiesMovement();
             this.updateCamera();
             this.updateUI();
-        }, 50); // 20 FPS
+        }, 50);
 
         gameState.zoneDamageLoop = setInterval(() => {
             this.checkAllZoneDamage();
@@ -117,7 +118,6 @@ window.Game = {
         });
         gameState.entities = [];
         
-        // Создаем только ботов (10 штук)
         for(let i=0; i<10; i++) {
             this.spawnEntity('bot'+i, '🐔', Math.random()*2000-1000, Math.random()*2000-1000, 60, 'enemy');
         }
@@ -129,18 +129,18 @@ window.Game = {
         el.id = id;
         el.innerHTML = `<div class="mini-hp-bar"><div class="mini-hp-fill" style="width: 100%;"></div></div>${icon}`;
         
-        // Добавляем состояние для ИИ (стамина и полет)
         const entity = { 
             id, el, x, y, hp, maxHp: hp, type, 
             stamina: GAME_CONSTANTS.STAMINA_MAX, 
-            flying: false 
+            flying: false,
+            lastAttack: 0 
         };
         gameState.entities.push(entity);
         els.world.appendChild(el);
         this.updateEntityPos(entity);
     },
 
-    // --- ЛОГИКА БОТОВ (НОВАЯ) ---
+    // --- ЛОГИКА БОТОВ (ИСПРАВЛЕНО ДВИЖЕНИЕ) ---
 
     updateEntitiesMovement() {
         gameState.entities.forEach(ent => {
@@ -159,59 +159,57 @@ window.Game = {
 
             // 1. ВЫБОР ЦЕЛИ
             if (outsideZone) {
-                // ПРИОРИТЕТ 1: ЗОНА (Бегство)
+                // ПРИОРИТЕТ 1: ЗОНА
                 targetX = Zone.x;
                 targetY = Zone.y;
                 speed = GAME_CONSTANTS.BOT_SPEED_RUN;
 
-                // Бот активирует полет, если он вне зоны и может это сделать
                 if (!ent.flying && ent.stamina > 10 && Math.random() < GAME_CONSTANTS.BOT_FLY_CHANCE) {
                     ent.flying = true;
                 }
             } else if (closestTarget) {
-                // ПРИОРИТЕТ 2: ВРАГ (Атака/Преследование)
+                // ПРИОРИТЕТ 2: ВРАГ
                 targetX = closestTarget.x;
                 targetY = closestTarget.y;
                 targetId = closestTarget.id;
                 
-                // Если враг близко, пытаемся атаковать
                 const distToTarget = Math.hypot(targetX - ent.x, targetY - ent.y);
                 
                 if (distToTarget < GAME_CONSTANTS.BOT_ATTACK_RANGE) {
                     this.botAttack(ent, targetId);
                     speed = 0; // Останавливаемся для атаки
                 } else {
-                    speed = GAME_CONSTANTS.BOT_SPEED_RUN; // Бежим к врагу
+                    speed = ent.flying ? GAME_CONSTANTS.BOT_SPEED_RUN : GAME_CONSTANTS.BOT_SPEED_WALK; // Бежим к врагу
                 }
                 
             } else {
-                // ПРИОРИТЕТ 3: НЕТ ЦЕЛИ (Случайное движение внутри зоны)
-                dx = (Math.random() - 0.5) * 2;
-                dy = (Math.random() - 0.5) * 2;
+                // ПРИОРИТЕТ 3: НЕТ ЦЕЛИ (Случайное движение)
+                dx = (Math.random() - 0.5);
+                dy = (Math.random() - 0.5);
                 speed = GAME_CONSTANTS.BOT_SPEED_WALK;
             }
 
-            // 2. РАСЧЕТ ВЕКТОРА
+            // 2. РАСЧЕТ ВЕКТОРА И ДВИЖЕНИЕ (ИСПРАВЛЕНО)
             if (speed > 0) {
                 if (!outsideZone && !closestTarget) {
-                    // Если случайное движение
+                    // Случайное движение (вектор dx/dy уже задан)
                 } else {
-                    // Если есть цель (Зона или Враг)
+                    // Движение к цели (Зона или Враг)
                     dx = targetX - ent.x;
                     dy = targetY - ent.y;
                 }
                 
                 const dist = Math.hypot(dx, dy);
-                if (dist > 0) {
-                    ent.x += (dx / dist) * speed / 4; 
-                    ent.y += (dy / dist) * speed / 4; 
+                
+                // ИСПРАВЛЕНИЕ: Проверка, чтобы избежать деления на ноль, если dist=0
+                if (dist > 0) { 
+                    ent.x += (dx / dist) * speed / GAME_CONSTANTS.FRAME_RATE_DIVIDER; 
+                    ent.y += (dy / dist) * speed / GAME_CONSTANTS.FRAME_RATE_DIVIDER; 
                 }
             }
 
-            // Сброс полета, если стамина закончилась
             if (ent.stamina <= 0) ent.flying = false;
 
-            // Ограничение мира и обновление позиции
             ent.x = Math.max(-1150, Math.min(1150, ent.x));
             ent.y = Math.max(-1150, Math.min(1150, ent.y));
 
@@ -221,13 +219,11 @@ window.Game = {
 
     botAttack(aggressor, targetId) {
         if (aggressor.lastAttack && (Date.now() - aggressor.lastAttack) < 500) {
-            return; // Задержка атаки
+            return;
         }
         
         this.takeDamage(targetId, GAME_CONSTANTS.BOT_ATTACK_DAMAGE);
         aggressor.lastAttack = Date.now();
-        
-        // Визуальный эффект атаки (можно добавить, но пока оставим без него для скорости)
     },
 
     handleBotStamina(entity) {
@@ -238,12 +234,31 @@ window.Game = {
                 entity.flying = false;
             }
         } else {
-            // Реген, когда не летят
             entity.stamina = Math.min(GAME_CONSTANTS.STAMINA_MAX, entity.stamina + GAME_CONSTANTS.STAMINA_REGEN);
         }
     },
     
-    // --- ЛОГИКА ИГРОКА (Обновленная стамина) ---
+    // --- ЛОГИКА ИГРОКА (ИСПРАВЛЕНО ДВИЖЕНИЕ) ---
+
+    handleInput() {
+        if (gameState.dead || (gameState.input.x === 0 && gameState.input.y === 0)) return;
+
+        let speed = gameState.flying ? GAME_CONSTANTS.PLAYER_SPEED_FLY : GAME_CONSTANTS.PLAYER_SPEED_WALK;
+        
+        if (gameState.flying && gameState.stamina <= 0) {
+            speed = GAME_CONSTANTS.PLAYER_SPEED_WALK / 2;
+        }
+
+        // ИСПРАВЛЕНИЕ: Движение теперь рассчитывается по полной скорости, деленной на FPS
+        let newX = gameState.x + gameState.input.x * speed / GAME_CONSTANTS.FRAME_RATE_DIVIDER;
+        let newY = gameState.y + gameState.input.y * speed / GAME_CONSTANTS.FRAME_RATE_DIVIDER;
+
+        newX = Math.max(-1150, Math.min(1150, newX));
+        newY = Math.max(-1150, Math.min(1150, newY));
+
+        gameState.x = newX;
+        gameState.y = newY;
+    },
 
     handlePlayerStamina() {
         if (gameState.dead) return;
@@ -259,9 +274,7 @@ window.Game = {
         }
     },
     
-    // --- ЛОГИКА КАМЕРЫ И УРОНА ---
-    
-    // ... (updateEntityPos, toggleFly, updateCamera - остаются прежними)
+    // --- (Остальные функции, включая toggleFly, updateCamera, takeDamage, checkAllZoneDamage, attack, die, checkWin, updateUI, handleButton - без изменений) ---
 
     updateEntityPos(entity) {
         if (entity.hp <= 0) {
@@ -314,7 +327,6 @@ window.Game = {
         els.world.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
     },
 
-
     takeDamage(entityId, amount) {
         if (entityId === 'player') {
             gameState.hp -= amount;
@@ -334,12 +346,10 @@ window.Game = {
     checkAllZoneDamage() {
         if (gameState.dead) return;
         
-        // 1. Игрок
         if (Zone.checkDamage(gameState.x, gameState.y)) {
             this.takeDamage('player', ZONE_SETTINGS.DAMAGE_PER_SEC);
         }
         
-        // 2. Боты 
         gameState.entities.forEach(ent => {
             if (ent.hp > 0 && Zone.checkDamage(ent.x, ent.y)) {
                 this.takeDamage(ent.id, ZONE_SETTINGS.DAMAGE_PER_SEC);
@@ -357,7 +367,6 @@ window.Game = {
         document.getElementById('player-anchor').appendChild(fx);
         setTimeout(()=>fx.remove(), 300);
 
-        // Игрок атакует всех в радиусе
         const targetEntities = gameState.entities.filter(ent => ent.hp > 0 && Math.hypot(ent.x - gameState.x, ent.y - gameState.y) < GAME_CONSTANTS.ATTACK_RANGE);
 
         targetEntities.forEach(ent => {
@@ -382,8 +391,6 @@ window.Game = {
         }
     },
 
-    // --- UI ---
-
     updateUI() {
         els.uiHP.innerText = Math.max(0, Math.ceil(gameState.hp));
         els.hpFill.style.width = Math.max(0, gameState.hp) + '%';
@@ -399,7 +406,6 @@ window.Game = {
 // --- УПРАВЛЕНИЕ ---
 
 const handleButton = (id, dx, dy, isDown) => {
-    // ... (remains the same)
     const btn = document.getElementById(id);
     const handler = (e) => { 
         e.preventDefault(); 
@@ -407,6 +413,7 @@ const handleButton = (id, dx, dy, isDown) => {
             gameState.input.x = dx; 
             gameState.input.y = dy;
         } else {
+            // Сбрасываем input только если отпускаем ту же кнопку
             if(gameState.input.x === dx && gameState.input.y === dy) {
                 gameState.input.x = 0; 
                 gameState.input.y = 0; 
