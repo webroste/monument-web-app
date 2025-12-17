@@ -3,8 +3,10 @@
 const GAME_CONSTANTS = {
     PLAYER_SPEED_WALK: 15,
     PLAYER_SPEED_FLY: 30,
-    STAMINA_DRAIN: 2.0, // Трата за тик
-    STAMINA_REGEN: 1.0, // Регенерация за тик
+    BOT_SPEED_WALK: 12,    // Скорость внутри зоны
+    BOT_SPEED_RUN: 25,     // Скорость при бегстве от зоны
+    STAMINA_DRAIN: 2.0,
+    STAMINA_REGEN: 1.0,
     ATTACK_RANGE: 100,
     DAMAGE_RATE: 1000 // Интервал для нанесения урона зоной (1 секунда)
 };
@@ -84,8 +86,8 @@ window.Game = {
         });
         gameState.entities = [];
         
-        this.spawnEntity('boss', '🐱', 500, -500, 200, 'boss'); // Boss
-        for(let i=0; i<9; i++) {
+        // Создаем только ботов (10 штук)
+        for(let i=0; i<10; i++) {
             this.spawnEntity('bot'+i, '🐔', Math.random()*2000-1000, Math.random()*2000-1000, 60, 'enemy');
         }
     },
@@ -109,7 +111,7 @@ window.Game = {
         }
         
         const center = ZONE_SETTINGS.HALF_WORLD; 
-        const offset = entity.type === 'boss' ? 30 : 20; 
+        const offset = 20; // 40px сущность
         
         entity.el.style.left = (entity.x + center - offset) + 'px';
         entity.el.style.top = (entity.y + center - offset) + 'px';
@@ -120,10 +122,42 @@ window.Game = {
         gameState.entities.forEach(ent => {
             if (ent.hp <= 0) return;
             
-            const speed = ent.type === 'boss' ? 5 : 10;
-            ent.x += (Math.random() - 0.5) * speed;
-            ent.y += (Math.random() - 0.5) * speed;
+            let dx = 0;
+            let dy = 0;
+            let speed = GAME_CONSTANTS.BOT_SPEED_WALK;
             
+            // 1. ПРОВЕРКА ЗОНЫ
+            const outsideZone = Zone.checkDamage(ent.x, ent.y);
+            
+            if (outsideZone) {
+                // БОТ ВНЕ ЗОНЫ: Бежим к центру зоны
+                speed = GAME_CONSTANTS.BOT_SPEED_RUN;
+                
+                // Вектор от бота до центра зоны
+                dx = Zone.x - ent.x;
+                dy = Zone.y - ent.y;
+                
+            } else {
+                // БОТ ВНУТРИ ЗОНЫ: Двигаемся случайно (или от центра зоны, чтобы не толпиться)
+                if (Math.random() < 0.95) { 
+                    // 95% времени просто бродим
+                    dx = (Math.random() - 0.5) * 2;
+                    dy = (Math.random() - 0.5) * 2;
+                } else {
+                    // 5% времени просто стоим
+                    dx = 0;
+                    dy = 0;
+                }
+            }
+
+            // 2. НОРМАЛИЗАЦИЯ И ДВИЖЕНИЕ
+            const dist = Math.hypot(dx, dy);
+            if (dist > 0) {
+                ent.x += (dx / dist) * speed / 4; // /4 для плавности в 20FPS
+                ent.y += (dy / dist) * speed / 4; 
+            }
+            
+            // Ограничение мира
             ent.x = Math.max(-1150, Math.min(1150, ent.x));
             ent.y = Math.max(-1150, Math.min(1150, ent.y));
 
@@ -131,7 +165,7 @@ window.Game = {
         });
     },
 
-    // --- ЛОГИКА ДВИЖЕНИЯ/СТАМИНЫ ---
+    // --- ЛОГИКА ДВИЖЕНИЯ/СТАМИНЫ И КАМЕРЫ ---
     
     handleInput() {
         if (gameState.dead || (gameState.input.x === 0 && gameState.input.y === 0)) return;
@@ -139,10 +173,10 @@ window.Game = {
         let speed = gameState.flying ? GAME_CONSTANTS.PLAYER_SPEED_FLY : GAME_CONSTANTS.PLAYER_SPEED_WALK;
         
         if (gameState.flying && gameState.stamina <= 0) {
-            speed = GAME_CONSTANTS.PLAYER_SPEED_WALK / 2; // Медленное падение
+            speed = GAME_CONSTANTS.PLAYER_SPEED_WALK / 2;
         }
 
-        let newX = gameState.x + gameState.input.x * speed / 4; 
+        let newX = gameState.x + gameState.input.x * speed / 4;
         let newY = gameState.y + gameState.input.y * speed / 4;
 
         newX = Math.max(-1150, Math.min(1150, newX));
@@ -188,8 +222,6 @@ window.Game = {
         }
     },
 
-    // --- ЛОГИКА КАМЕРЫ ---
-
     updateCamera() {
         if (gameState.dead) return;
         
@@ -199,8 +231,6 @@ window.Game = {
         const viewW = window.innerWidth;
         const viewH = window.innerHeight;
 
-        // КЛЮЧЕВОЙ МОМЕНТ: ПРАВИЛЬНЫЙ РАСЧЕТ СМЕЩЕНИЯ МИРА
-        // offsetX = (Центр экрана) - (Позиция цели в CSS world-container)
         const offsetX = (viewW / 2) - (targetX + ZONE_SETTINGS.HALF_WORLD);
         const offsetY = (viewH / 2) - (targetY + ZONE_SETTINGS.HALF_WORLD);
 
@@ -233,7 +263,7 @@ window.Game = {
             this.takeDamage('player', ZONE_SETTINGS.DAMAGE_PER_SEC);
         }
         
-        // 2. Боты и Босс (получают урон)
+        // 2. Боты 
         gameState.entities.forEach(ent => {
             if (ent.hp > 0 && Zone.checkDamage(ent.x, ent.y)) {
                 this.takeDamage(ent.id, ZONE_SETTINGS.DAMAGE_PER_SEC);
@@ -272,7 +302,7 @@ window.Game = {
         const enemies = gameState.entities.filter(e => e.type !== 'player' && e.hp > 0).length;
         if (enemies === 0 && !gameState.dead) {
             document.getElementById('go-title').innerText = "ПОБЕДА!";
-            document.getElementById('go-desc').innerText = "Вы победили всех врагов и Босса!";
+            document.getElementById('go-desc').innerText = "Вы победили всех врагов!";
             document.getElementById('game-over-screen').classList.remove('hidden');
             this.stopLoops();
         }
